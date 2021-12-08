@@ -23,8 +23,16 @@ endif
 ARCH ?= arm64
 CROSS_COMPILE ?= /home/sd4ce/sdk/zte_905x4_8852ae/gcc-linaro-6.3.1-2017.02-x86_64_aarch64-linux-gnu/bin/aarch64-linux-gnu-
 ifndef KSRC
-KSRC := /home/sd4ce/sdk/zte_905x4_8852ae/kernel_headers
-KSRC += O=/home/sd4ce/sdk/zte_905x4_8852ae/KERNEL_OBJ
+#KSRC := /home/sd4ce/sdk/zte_905x4_8852ae/kernel_headers
+#KSRC += O=/home/sd4ce/sdk/zte_905x4_8852ae/KERNEL_OBJ
+endif
+
+#add by amlogic
+ifndef KSRC
+EXTRA_CFLAGS += -w -Wno-return-type
+KSRC := $(KERNEL_SRC)
+EXTRA_CFLAGS += $(foreach d,$(shell test -d $(KERNEL_SRC)/$(M) && find $(shell cd $(KERNEL_SRC)/$(M);pwd) -type d),$(shell echo " -I$(d)"))
+#EXTRA_CFLAGS += -DUSE_AML_PCIE_TEE_MEM
 endif
 
 ifeq ($(CONFIG_PCI_HCI), y)

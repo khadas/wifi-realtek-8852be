@@ -122,7 +122,16 @@ void pci_free_cache_mem(struct pci_dev *pdev,
 void pci_free_noncache_mem(struct pci_dev *pdev,
 		void *vir_addr, dma_addr_t *bus_addr, size_t size)
 {
-	if (NULL != pdev)
-		pci_free_consistent(pdev, size, vir_addr, *bus_addr);
+	struct device *dev = NULL;
+
+	if (NULL != pdev) {
+		dev = &pdev->dev;
+#ifdef CONFIG_PLATFORM_AML_S905
+	if (g_pcie_reserved_mem_dev)
+		dev = g_pcie_reserved_mem_dev;
+#endif
+		dma_free_coherent(dev, size, vir_addr, *bus_addr);
+		//pci_free_consistent(pdev, size, vir_addr, *bus_addr);
+	}
 	vir_addr = NULL;
 }

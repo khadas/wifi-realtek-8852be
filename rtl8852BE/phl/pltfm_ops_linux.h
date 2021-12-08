@@ -16,6 +16,10 @@
 #define _PLTFM_OPS_LINUX_H_
 #include "drv_types.h"
 
+#ifdef CONFIG_PLATFORM_AML_S905
+extern struct device * g_pcie_reserved_mem_dev;
+#endif
+
 static inline char *_os_strpbrk(const char *s, const char *ct)
 {
 	return strpbrk(s, ct);
@@ -187,6 +191,10 @@ static inline void *_os_pkt_buf_unmap_rx(void *d, _dma bus_addr_l, _dma bus_addr
 #endif /*CONFIG_PCI_HCI*/
 
 #ifdef CONFIG_PCI_HCI
+#ifdef CONFIG_PLATFORM_AML_S905
+	if (g_pcie_reserved_mem_dev)
+		pdev->dev.dma_mask = NULL;
+#endif
 	pci_unmap_single(pdev, bus_addr_l, buf_sz, PCI_DMA_FROMDEVICE);
 #endif
 
@@ -205,6 +213,10 @@ static inline void *_os_pkt_buf_map_rx(void *d, _dma *bus_addr_l, _dma *bus_addr
 	struct pci_dev *pdev = pci_data->ppcidev;
 	struct sk_buff *skb = os_priv;
 
+#ifdef CONFIG_PLATFORM_AML_S905
+	if (g_pcie_reserved_mem_dev)
+		pdev->dev.dma_mask = NULL;
+#endif
 	*bus_addr_l = pci_map_single(pdev, skb->data, buf_sz, PCI_DMA_FROMDEVICE);
 	/* *bus_addr_h = NULL;*/
 #endif /*CONFIG_PCI_HCI*/
@@ -233,6 +245,10 @@ static inline void *_os_pkt_buf_alloc_rx(void *d, _dma *bus_addr_l,
 
 	skb_pull(skb, PHL_RX_HEADROOM);
 #ifdef CONFIG_PCI_HCI
+#ifdef CONFIG_PLATFORM_AML_S905
+	if (g_pcie_reserved_mem_dev)
+		pdev->dev.dma_mask = NULL;
+#endif
 	*bus_addr_l = pci_map_single(pdev, skb->data, rxbuf_size, PCI_DMA_FROMDEVICE);
 	/* *bus_addr_h = NULL;*/
 #endif /*CONFIG_PCI_HCI*/
@@ -252,6 +268,10 @@ static inline void _os_pkt_buf_free_rx(void *d, u8 *vir_addr, _dma bus_addr_l,
 	struct sk_buff *skb = (struct sk_buff *)os_priv;
 
 #ifdef CONFIG_PCI_HCI
+#ifdef CONFIG_PLATFORM_AML_S905
+	if (g_pcie_reserved_mem_dev)
+		pdev->dev.dma_mask = NULL;
+#endif
 	pci_unmap_single(pdev, bus_addr_l, buf_sz, PCI_DMA_FROMDEVICE);
 #endif /*CONFIG_PCI_HCI*/
 	rtw_skb_free(skb);

@@ -418,27 +418,6 @@ EXTRA_CFLAGS += -DCONFIG_RTW_SDIO_PM_KEEP_POWER
 endif
 endif
 ################################################################
-
-ifeq ($(CONFIG_PLATFORM_AML_S905), y)
-EXTRA_CFLAGS += -DCONFIG_PLATFORM_AML_S905
-EXTRA_CFLAGS += -DCONFIG_LITTLE_ENDIAN -fno-pic
-# default setting for Android
-EXTRA_CFLAGS += -DCONFIG_CONCURRENT_MODE
-EXTRA_CFLAGS += -DCONFIG_IOCTL_CFG80211
-EXTRA_CFLAGS += -DRTW_USE_CFG80211_STA_EVENT
-# default setting for Android 5.x and later
-EXTRA_CFLAGS += -DCONFIG_RADIO_WORK
-EXTRA_CFLAGS += -Wno-return-type
-ifndef KSRC
-EXTRA_CFLAGS += -w
-KSRC := $(KERNEL_SRC)
-EXTRA_CFLAGS += $(foreach d,$(shell test -d $(KERNEL_SRC)/$(M) && find $(shell cd $(KERNEL_SRC)/$(M);pwd) -type d),$(shell echo " -I$(d)"))
-#EXTRA_CFLAGS += -DUSE_AML_PCIE_TEE_MEM
-endif
-
-endif
-
-################################################################
 ifeq ($(CONFIG_AP_WOWLAN), y)
 EXTRA_CFLAGS += -DCONFIG_AP_WOWLAN
 ifeq ($(CONFIG_SDIO_HCI), y)

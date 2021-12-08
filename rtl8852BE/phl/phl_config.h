@@ -204,7 +204,7 @@
 #endif
 
 #if CONFIG_DFS
-#define CONFIG_PHL_DFS
+//#define CONFIG_PHL_DFS
 #endif
 
 #ifdef CONFIG_PHL_DFS
