@@ -97,9 +97,11 @@ CONFIG_DBG_AX_CAM = y
 USE_TRUE_PHY = y
 CONFIG_I386_BUILD_VERIFY = n
 CONFIG_RTW_MBO = n
+# CONFIG_RTKM - n/m/y for not support / standalone / built-in
+CONFIG_RTKM ?= n
 ########################## Android ###########################
-# CONFIG_RTW_ANDROID - 0: no Android, 4/5/6/7/8/9/10/11 : Android version
-CONFIG_RTW_ANDROID = 11
+# CONFIG_RTW_ANDROID - 0: no Android, 4/5/6/7/8/9/10 : Android version
+CONFIG_RTW_ANDROID = 0
 
 ifeq ($(shell test $(CONFIG_RTW_ANDROID) -gt 0; echo $$?), 0)
 EXTRA_CFLAGS += -DCONFIG_RTW_ANDROID=$(CONFIG_RTW_ANDROID)
@@ -136,7 +138,6 @@ CONFIG_HIGH_ACTIVE_DEV2HST = n
 CONFIG_ONE_PIN_GPIO = n
 CONFIG_HIGH_ACTIVE_HST2DEV = n
 CONFIG_PNO_SUPPORT = n
-CONFIG_PNO_SET_DEBUG = n
 CONFIG_AP_WOWLAN = n
 ######### Notify SDIO Host Keep Power During Syspend ##########
 CONFIG_RTW_SDIO_PM_KEEP_POWER = y
@@ -160,6 +161,7 @@ CONFIG_PLATFORM_RTK1319 = n
 CONFIG_PLATFORM_RTK16XXB = n
 CONFIG_PLATFORM_AML_S905 = y
 CONFIG_PLATFORM_HUANGLONG = n
+CONFIG_PLATFORM_ARM_RK3188 = n
 
 ########### CUSTOMER ################################
 
@@ -417,7 +419,7 @@ ifeq ($(CONFIG_SDIO_HCI), y)
 EXTRA_CFLAGS += -DCONFIG_RTW_SDIO_PM_KEEP_POWER
 endif
 endif
-################################################################
+
 ifeq ($(CONFIG_AP_WOWLAN), y)
 EXTRA_CFLAGS += -DCONFIG_AP_WOWLAN
 ifeq ($(CONFIG_SDIO_HCI), y)
@@ -431,9 +433,6 @@ endif
 
 ifeq ($(CONFIG_PNO_SUPPORT), y)
 EXTRA_CFLAGS += -DCONFIG_PNO_SUPPORT
-ifeq ($(CONFIG_PNO_SET_DEBUG), y)
-EXTRA_CFLAGS += -DCONFIG_PNO_SET_DEBUG
-endif
 endif
 
 ifeq ($(CONFIG_GPIO_WAKEUP), y)
@@ -620,8 +619,23 @@ include $(src)/phl/phl.mk
 
 
 obj-m := $(MODULE_NAME).o
-obj-$(CPTCFG_RTL8852AE) := $(MODULE_NAME).o
+#obj-$(CONFIG_RTL8852BE) := $(MODULE_NAME).o
 $(MODULE_NAME)-y = $(OBJS)
+
+############# MEMORY MANAGMENT #############
+ifneq ($(CONFIG_RTKM), n)
+_MEMM_FILES = core/rtw_prealloc.o
+ifeq ($(CONFIG_RTKM), y)
+EXTRA_CFLAGS += -DCONFIG_RTKM -DCONFIG_RTKM_BUILT_IN
+$(MODULE_NAME)-y += $(_MEMM_FILES)
+else ifeq ($(CONFIG_RTKM), m)
+RTKM_MODULE = rtkm
+EXTRA_CFLAGS += -DCONFIG_RTKM -DCONFIG_RTKM_STANDALONE
+_MEMM_FILES += core/rtw_mem.o
+$(RTKM_MODULE)-y += $(_MEMM_FILES)
+obj-$(CONFIG_RTL8852BE) += $(RTKM_MODULE).o
+endif
+endif
 
 else
 
@@ -635,7 +649,9 @@ modules:
 
 	$(MAKE) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) -C $(KSRC) M=$(M)  modules
 	$(CROSS_COMPILE)strip --strip-unneeded ${OUT_DIR}/$(M)/$(MODULE_NAME).ko
-
+ifeq ($(CONFIG_RTKM), m)
+	$(CROSS_COMPILE)strip --strip-unneeded ${OUT_DIR}/$(M)/rtkm.ko
+endif
 	#cp Module.symvers .symvers.$(MODULE_NAME)
 
 strip:
@@ -653,6 +669,9 @@ modules_install:
 	@$(MAKE) INSTALL_MOD_STRIP=1 M=$(M) -C $(KSRC) modules_install
 	mkdir -p ${OUT_DIR}/../vendor_lib/modules
 	cd ${OUT_DIR}/$(M)/; find -name $(MODULE_NAME).ko -exec cp {} ${OUT_DIR}/../vendor_lib/modules/ \;
+ifeq ($(CONFIG_RTKM), m)
+	cd ${OUT_DIR}/$(M)/; find -name rtkm.ko -exec cp {} ${OUT_DIR}/../vendor_lib/modules/rtl8852be_rtkm.ko \;
+endif
 
 backup_rtlwifi:
 	@echo "Making backup rtlwifi drivers"

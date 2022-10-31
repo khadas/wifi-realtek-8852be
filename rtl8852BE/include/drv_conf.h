@@ -315,7 +315,7 @@
 	#define CONFIG_DFS_SLAVE_WITH_RADAR_DETECT 0
 	#endif
 	#if !defined(CONFIG_DFS_MASTER) || CONFIG_DFS_SLAVE_WITH_RADAR_DETECT
-	#define CONFIG_DFS_MASTER
+	/*#define CONFIG_DFS_MASTER*/
 	#endif
 	#if defined(CONFIG_DFS_MASTER) && !defined(CONFIG_RTW_DFS_REGION_DOMAIN)
 	#define CONFIG_RTW_DFS_REGION_DOMAIN 0
@@ -617,7 +617,7 @@ power down etc.) in last time, we can unmark this flag to avoid some unpredictab
 #define CONFIG_BCN_ICF
 #endif 
 
-#ifndef CONFIG_PCI_MSI
+#if !defined (CONFIG_PCI_MSI) || defined (CONFIG_RTW_FORCE_PCI_MSI_DISABLE)
 #define CONFIG_RTW_PCI_MSI_DISABLE
 #endif
 
@@ -642,6 +642,11 @@ power down etc.) in last time, we can unmark this flag to avoid some unpredictab
 /* for phl illegal mac io access check*/
 #define CONFIG_MAC_REG_RW_CHK
 
+/* To enable the CONFIG_PHL_P2PPS definition in phl_config.h */
+#ifdef CONFIG_P2P_PS
+#define CONFIG_P2PPS
+#endif
+
 #ifdef CONFIG_CMD_DISP
 	/*#define DBG_CONFIG_CMD_DISP*/
 
@@ -664,8 +669,12 @@ power down etc.) in last time, we can unmark this flag to avoid some unpredictab
 #endif
 
 #ifdef ROKU_PRIVATE
-	#define CONFIG_USB_RELEASE_RPT
+	#define CONFIG_RELEASE_RPT
 	#define CONFIG_RA_TXSTS_DBG
+#endif
+
+#ifdef CONFIG_80211AX_HE
+	#define CONFIG_STA_MULTIPLE_BSSID
 #endif
 
 /*
@@ -677,4 +686,8 @@ power down etc.) in last time, we can unmark this flag to avoid some unpredictab
  */
 #define RTW_WKARD_UPDATE_PHL_ROLE_CAP
 
+/*
+*RTW_WKARD_TRIGGER_FRAME_PARSER-OFDMA UL TB control
+*/
+#define RTW_WKARD_TRIGGER_FRAME_PARSER
 #endif /* __DRV_CONF_H__ */

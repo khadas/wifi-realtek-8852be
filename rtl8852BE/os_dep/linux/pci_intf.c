@@ -1067,6 +1067,15 @@ static int __init rtw_drv_entry(void)
 	RTW_PRINT(DRV_NAME" BT-Coex version = %s\n", BTCOEXVERSION);
 #endif /* BTCOEXVERSION */
 
+#if (defined(CONFIG_RTKM) && defined(CONFIG_RTKM_BUILT_IN))
+	ret = rtkm_prealloc_init();
+	if (ret) {
+		RTW_INFO("%s: pre-allocate memory failed!!(%d)\n", __FUNCTION__,
+			 ret);
+		goto exit;
+	}
+#endif /* CONFIG_RTKM */
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24))
 	/* console_suspend_enabled=0; */
 #endif
@@ -1112,6 +1121,12 @@ static void __exit rtw_drv_halt(void)
 	RTW_PRINT("module exit success\n");
 
 	rtw_mstat_dump(RTW_DBGDUMP);
+
+#if (defined(CONFIG_RTKM) && defined(CONFIG_RTKM_BUILT_IN))
+	rtkm_prealloc_destroy();
+#elif (defined(CONFIG_RTKM) && defined(CONFIG_RTKM_STANDALONE))
+	rtkm_dump_mstatus(RTW_DBGDUMP);
+#endif /* CONFIG_RTKM */
 }
 
 

@@ -309,6 +309,8 @@ enum {
 	MP_PHL_RFK,
 	MP_PHL_BTC_PATH,
 	MP_GET_HE,
+	MP_UUID,
+	MP_GPIO,
 	MP_NULL,
 #ifdef CONFIG_APPEND_VENDOR_IE_ENABLE
 	VENDOR_IE_SET ,
@@ -430,10 +432,13 @@ struct mp_priv {
 	BOOLEAN mplink_btx;
 
 	bool tssitrk_on;
+	u8 tssi_mode;
 	u8 rtw_mp_cur_phy;
 	u8 rtw_mp_dbcc;
 	s16 path_pwr_offset[4];	/* rf-A, rf-B*/
 	u8 rtw_mp_tx_method;
+	u16 rtw_mp_tx_time;
+	u8 rtw_mp_tx_state;
 	u8 rtw_mp_pmact_patt_idx;
 	u8 rtw_mp_pmact_ppdu_type;
 	u8 rtw_mp_data_bandwidth;
@@ -459,6 +464,9 @@ struct mp_priv {
 
 	u8 keep_ips_status;
 	u8 keep_lps_status;
+	u8 tx_shape_idx;
+	u8 gpio_id;
+	u8 gpio_enable;
 };
 
 #define PPDU_TYPE_STR(idx)\
@@ -840,6 +848,8 @@ enum rtw_mp_config_cmdid {
 	RTW_MP_CONFIG_CMD_GET_RFE_TYPE,
 	RTW_MP_CONFIG_CMD_GET_DEV_IDX,
 	RTW_MP_CONFIG_CMD_TRIGGER_FW_CONFLICT,
+	RTW_MP_CONFIG_CMD_GET_UUID,
+	RTW_MP_CONFIG_CMD_SET_GPIO,
 	RTW_MP_CONFIG_CMD_MAX,
 };
 
@@ -902,6 +912,9 @@ struct rtw_mp_config_arg {
 	u8 dev_id;
 	u32 offset;
 	u8 voltag;
+	u32 uuid;
+	u8 gpio_id;
+	u8 gpio_enable;
 };
 
 struct rtw_mp_tx_arg {
@@ -1262,6 +1275,8 @@ enum rtw_mp_txpwr_cmd {
 	RTW_MP_TXPWR_CMD_GET_ONLINE_TSSI_DE = 15,
 	RTW_MP_TXPWR_CMD_SET_PWR_LMT_EN = 16,
 	RTW_MP_TXPWR_CMD_GET_PWR_LMT_EN = 17,
+	RTW_MP_TXPWR_CMD_SET_TX_POW_PATTERN_SHARP = 18,
+	RTW_MP_TXPWR_CMD_SET_TX_POW_TABLE_SWITCH = 19,
 	RTW_MP_TXPWR_CMD_MAX,
 };
 
@@ -1482,6 +1497,7 @@ void rtw_mp_phl_query_rx(_adapter *padapter, struct rtw_mp_rx_arg *rx_arg ,u8 rx
 u8 rtw_mp_phl_txpower(_adapter *padapter, struct rtw_mp_txpwr_arg	*ptxpwr_arg, u8 cmdid);
 void rtw_mp_set_crystal_cap(_adapter *padapter, u32 xcapvalue);
 u8 rtw_mp_phl_calibration(_adapter *padapter, struct rtw_mp_cal_arg	*pcal_arg, u8 cmdid);
+u8 rtw_mp_phl_reg(_adapter *padapter, struct rtw_mp_reg_arg	*reg_arg, u8 cmdid);
 
 
 u8 rtw_update_giltf(_adapter *padapter);
@@ -1515,6 +1531,8 @@ void	SetAntenna(_adapter *adapter);
 void	SetDataRate(_adapter *adapter);
 s32	SetThermalMeter(_adapter *adapter, u8 target_ther);
 void	GetThermalMeter(_adapter *adapter, u8 rfpath ,u8 *value);
+void	GetUuid(_adapter *adapter, u32 *uuid);
+void SetGpio(_adapter *padapter);
 void	rtw_mp_continuous_tx(_adapter *adapter, u8 bstart);
 void	rtw_mp_singlecarrier_tx(_adapter *adapter, u8 bstart);
 void	rtw_mp_singletone_tx(_adapter *adapter, u8 bstart);
@@ -1557,6 +1575,7 @@ u8 rtw_mp_set_tsside2verify(_adapter *padapter, u32 tssi_de, u8 rf_path);
 u8 rtw_mp_set_tssi_offset(_adapter *padapter, u32 tssi_offset, u8 rf_path);
 u8 rtw_mp_set_tssi_pwrtrk(_adapter *padapter, u8 tssi_state);
 u8 rtw_mp_get_tssi_pwrtrk(_adapter *padapter);
+u8 rtw_mp_set_tx_shape_idx(_adapter *padapter);
 
 void rtw_mp_cal_trigger(_adapter *padapter, u8 cal_tye);
 void rtw_mp_cal_capab(_adapter *padapter, u8 cal_tye, u8 benable);
@@ -1665,6 +1684,9 @@ int rtw_mp_psd(struct net_device *dev,
 		struct iw_request_info *info,
 		struct iw_point *wrqu, char *extra);
 int rtw_mp_thermal(struct net_device *dev,
+		struct iw_request_info *info,
+		struct iw_point *wrqu, char *extra);
+int rtw_mp_UUID(struct net_device *dev,
 		struct iw_request_info *info,
 		struct iw_point *wrqu, char *extra);
 int rtw_mp_reset_stats(struct net_device *dev,

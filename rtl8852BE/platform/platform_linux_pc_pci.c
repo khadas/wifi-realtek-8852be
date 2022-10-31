@@ -86,6 +86,7 @@ void *pci_alloc_cache_mem(struct pci_dev *pdev,
 
 	return vir_addr;
 }
+
 void *pci_alloc_noncache_mem(struct pci_dev *pdev,
 			dma_addr_t *bus_addr, size_t size)
 {
@@ -110,6 +111,27 @@ void *pci_alloc_noncache_mem(struct pci_dev *pdev,
 
 	return vir_addr;
 }
+
+struct dma_pool *pci_create_dma_pool(struct pci_dev *pdev, char *name, size_t size)
+{
+	return dma_pool_create(name, &pdev->dev, size, 2, 0);
+}
+
+void *pci_zalloc_pool_mem(struct pci_dev *pdev, struct dma_pool *pool, dma_addr_t *bus_addr)
+{
+	return dma_pool_zalloc(pool, (in_atomic() ? GFP_ATOMIC : GFP_KERNEL), bus_addr);
+}
+
+void pci_free_pool_mem(struct pci_dev *pdev, struct dma_pool *pool, void *vir_addr, dma_addr_t *bus_addr)
+{
+	return dma_pool_free(pool, vir_addr, *bus_addr);
+}
+
+void pci_destory_dma_pool(struct pci_dev *pdev, struct dma_pool *pool)
+{
+	dma_pool_destroy(pool);
+}
+
 void pci_free_cache_mem(struct pci_dev *pdev,
 		void *vir_addr, dma_addr_t *bus_addr,
 		size_t size, int direction)
@@ -119,6 +141,7 @@ void pci_free_cache_mem(struct pci_dev *pdev,
 
 	vir_addr = NULL;
 }
+
 void pci_free_noncache_mem(struct pci_dev *pdev,
 		void *vir_addr, dma_addr_t *bus_addr, size_t size)
 {
@@ -131,7 +154,6 @@ void pci_free_noncache_mem(struct pci_dev *pdev,
 		dev = g_pcie_reserved_mem_dev;
 #endif
 		dma_free_coherent(dev, size, vir_addr, *bus_addr);
-		//pci_free_consistent(pdev, size, vir_addr, *bus_addr);
 	}
 	vir_addr = NULL;
 }

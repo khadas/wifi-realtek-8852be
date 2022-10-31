@@ -56,6 +56,10 @@
 #include <linux/list.h>
 #include <linux/vmalloc.h>
 
+#ifdef CONFIG_RTKM
+#include <rtw_mem.h>
+#endif /* CONFIG_RTKM */
+
 #ifdef CONFIG_RECV_THREAD_MODE
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
 #include <uapi/linux/sched/types.h>	/* struct sched_param */
@@ -197,7 +201,13 @@ static inline void *_rtw_malloc(u32 sz)
 		pbuf = dvr_malloc(sz);
 	else
 	#endif
+	{
+#ifdef CONFIG_RTKM
+		pbuf = rtkm_kmalloc(sz, in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
+#else /* !CONFIG_RTKM */
 		pbuf = kmalloc(sz, in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
+#endif /* CONFIG_RTKM */
+	}
 
 #ifdef DBG_MEMORY_LEAK
 	if (pbuf != NULL) {
@@ -218,8 +228,12 @@ static inline void *_rtw_zmalloc(u32 sz)
 	if (pbuf != NULL)
 		memset(pbuf, 0, sz);
 #else
+#ifdef CONFIG_RTKM
+	void *pbuf = rtkm_kzalloc(sz, in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
+#else /* !CONFIG_RTKM */
 	/*kzalloc in KERNEL_VERSION(2, 6, 14)*/
 	void *pbuf = kzalloc( sz, in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
+#endif /* CONFIG_RTKM */
 
 #endif
 	return pbuf;
@@ -232,7 +246,13 @@ static inline void _rtw_mfree(void *pbuf, u32 sz)
 		dvr_free(pbuf);
 	else
 	#endif
+	{
+#ifdef CONFIG_RTKM
+		rtkm_kfree(pbuf, sz);
+#else /* !CONFIG_RTKM */
 		kfree(pbuf);
+#endif /* CONFIG_RTKM */
+	}
 
 #ifdef DBG_MEMORY_LEAK
 	atomic_dec(&_malloc_cnt);
@@ -488,7 +508,11 @@ static inline void rtw_thread_enter(char *name)
 
 static inline void rtw_thread_exit(_completion *comp)
 {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0))
 	complete_and_exit(comp, 0);
+#else
+	kthread_complete_and_exit(comp, 0);
+#endif
 }
 
 static inline _thread_hdl_ rtw_thread_start(int (*threadfn)(void *data),
@@ -1033,5 +1057,24 @@ static inline void rtw_dump_stack(void)
 
 #define STRUCT_PACKED __attribute__ ((packed))
 
+#ifndef fallthrough
+#if __GNUC__ >= 5 || defined(__clang__)
+#ifndef __has_attribute
+#define __has_attribute(x) 0
+#endif
+#if __has_attribute(__fallthrough__)
+#define fallthrough __attribute__((__fallthrough__))
+#endif
+#endif
+#ifndef fallthrough
+#define fallthrough do {} while (0) /* fallthrough */
+#endif
+#endif
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0))
+#define rtw_dev_addr_mod(dev, offset, addr, len) _rtw_memcpy(&dev->dev_addr[offset], addr, len)
+#else
+#define rtw_dev_addr_mod dev_addr_mod
+#endif
 
 #endif /* __OSDEP_LINUX_SERVICE_H_ */

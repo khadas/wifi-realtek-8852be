@@ -17,7 +17,11 @@
 
 #define WP_DELAY_THRES_MS 1000
 #define WD_PAGE_SIZE 128
+#ifdef CONFIG_PHL_REDUCE_MEM
+#define RX_BUF_SIZE 8192 /* Rx buffer size (without RXBD info length) to 8 byte alignment  by DD suggestion  */
+#else
 #define RX_BUF_SIZE 11460 /* Rx buffer size (without RXBD info length) to 8 byte alignment  by DD suggestion  */
+#endif
 
 enum dump_list_type {
 	TYPE_WD_PAGE = 0,
@@ -79,6 +83,7 @@ struct rtw_wd_page_ring {
 	struct rtw_h2c_work h2c_work;
 	struct rtw_wp_tag wp_tag[WP_MAX_SEQ_NUMBER];
 	u16 wp_seq;
+	u16 cur_hw_res;
 };
 
 struct phl_buf {

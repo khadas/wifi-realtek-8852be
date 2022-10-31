@@ -25,7 +25,11 @@ struct pkt_file {
 	SIZE_T buf_len;
 };
 
+#ifdef CONFIG_RTW_REDUCE_MEM
+#define NR_XMITFRAME		512
+#else
 #define NR_XMITFRAME		1256
+#endif
 #define NR_XMITFRAME_EXT	32
 #define SZ_XMITFRAME_EXT	1536	/*MGNT frame*/
 

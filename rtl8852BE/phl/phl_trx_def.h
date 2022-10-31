@@ -17,9 +17,17 @@
 
 /* core / phl common structrue */
 
+#ifdef CONFIG_PHL_REDUCE_MEM
+#define MAX_PHL_RING_ENTRY_NUM 512
+#else
 #define MAX_PHL_RING_ENTRY_NUM 4096
+#endif
 #define MAX_PHL_RING_CAT_NUM 10 /* 8 tid + 1 mgnt + 1 hiq*/
+#ifdef CONFIG_PHL_REDUCE_MEM
+#define MAX_PHL_RING_RX_PKT_NUM 1024
+#else
 #define MAX_PHL_RING_RX_PKT_NUM 8192
+#endif
 #define MAX_RX_BUF_SEG_NUM 4
 
 #define _H2CB_CMD_QLEN 32
@@ -406,6 +414,7 @@ struct rtw_txfb_t {
  * @total_len: the total length of pkt_list
  * @pkt_cnt: the packet number of pkt_list
  * @pkt_list: see structure rtw_pkt_buf_list
+ * @cache: 0: pkt_list->phy_addr_l/h use noncache coherent meory(DMA)
  * @txfb: tx feedback context
  *
  * Note, this structure are visible to core, phl and hal layer
@@ -420,6 +429,7 @@ struct rtw_xmit_req {
 	u32 total_len;
 	u8 pkt_cnt;
 	u8 *pkt_list;
+	u8 cache;
 	struct rtw_txfb_t *txfb;
 #ifdef CONFIG_PHL_TX_DBG
 	struct rtw_tx_dbg tx_dbg;

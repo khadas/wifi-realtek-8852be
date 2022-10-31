@@ -140,7 +140,7 @@ void phl_ps_dbg_dump(struct phl_info_t *phl_info, u32 *used,
 	if (info.sta != NULL) {
 		PS_CNSL(out_len, *used, output + *used, out_len - *used,
 				"chnl: %d, rssi: %d, rssi_bcn: %d\n",
-				info.sta->chandef.chan ,rtw_hal_get_sta_rssi(info.sta), phl_get_min_rssi_bcn(phl_info));
+				info.sta->chandef.chan, rtw_hal_get_sta_rssi(info.sta), phl_get_min_rssi_bcn(phl_info));
 	}
 
 	PS_CNSL(out_len, *used, output + *used, out_len - *used,

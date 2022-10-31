@@ -290,7 +290,7 @@ static void _ser_poll_timer_cb(void *priv)
 	nextmsg.band_idx = HW_BAND_0;
 
 	if (MSG_EVT_ID_FIELD(nextmsg.msg_id)) {
-		PHL_DBG("%s :: nextmsg->msg_id= 0x%X\n", __func__, MSG_EVT_ID_FIELD(nextmsg.msg_id));
+		PHL_INFO("%s :: nextmsg->msg_id= 0x%X\n", __func__, MSG_EVT_ID_FIELD(nextmsg.msg_id));
 		pstatus = phl_disp_eng_send_msg(cser->phl_info, &nextmsg, &attr, NULL);
 		if (pstatus != RTW_PHL_STATUS_SUCCESS)
 			PHL_ERR("%s :: [SER_TIMER_CB] dispr_send_msg failed\n", __func__);
@@ -414,18 +414,21 @@ _ser_hdl_external_evt(void *dispr, void *priv, struct phl_msg *msg)
 {
 	struct cmd_ser *cser = (struct cmd_ser *)priv;
 
-	/*
-	1. SER inprogress: pending msg from others module
-	2. SER recovery fail: clr pending event from MDL_SER & msg return failed from others module
-	3. SER recovery done: clr pending event & msg return ignor from others module
-	4. SER NOT OCCUR: MDL_RET_IGNORE
-	*/
+	/**
+	 * 1. SER inprogress: pending msg from others module
+	 * 2. SER recovery fail: clr pending event from MDL_SER & msg return failed from others module
+	 * 3. SER recovery done: clr pending event & msg return ignor from others module
+	 * 4. SER NOT OCCUR: MDL_RET_IGNORE
+	 */
 	if (cser->bserl2) {
-		PHL_ERR("%s: [2] L2 Occured!! From others MDL =%d , EVT_ID=%d\n", __func__,
+		/* allow MSG_EVT_DBG_L2_DIAGNOSE when ser L2 occured */
+		if (MSG_EVT_ID_FIELD(msg->msg_id) == MSG_EVT_DBG_L2_DIAGNOSE)
+			return MDL_RET_IGNORE;
+		PHL_ERR("%s: L2 Occured!! From others MDL=%d, EVT_ID=%d\n", __func__,
 		MSG_MDL_ID_FIELD(msg->msg_id), MSG_EVT_ID_FIELD(msg->msg_id));
 		return MDL_RET_FAIL;
 	} else if (cser->state) { /* non-CMD_SER_NOT_OCCUR */
-		PHL_WARN("%s: [1] Within SER!! From others MDL =%d , EVT_ID=%d\n", __func__,
+		PHL_WARN("%s: Within SER!! From others MDL=%d, EVT_ID=%d\n", __func__,
 		MSG_MDL_ID_FIELD(msg->msg_id), MSG_EVT_ID_FIELD(msg->msg_id));
 		return MDL_RET_PENDING;
 	}
@@ -586,7 +589,7 @@ _ser_hdl_internal_evt(void *dispr, void *priv, struct phl_msg *msg)
 
 	switch (MSG_EVT_ID_FIELD(msg->msg_id)) {
 	case MSG_EVT_SER_POLLING_CHK:
-		PHL_DBG("MSG_EVT_SER_POLLING_CHK\n");
+		PHL_INFO("MSG_EVT_SER_POLLING_CHK\n");
 		_ser_msg_hdl_polling_chk(cser);
 		break;
 
@@ -880,6 +883,17 @@ phl_ser_send_msg(void *phl, enum RTW_PHL_SER_NOTIFY_EVENT notify)
 	}
 
 	return phl_status;
+}
+
+void phl_ser_send_check(void *context)
+{
+	struct rtw_phl_handler *phl_handler
+		= (struct rtw_phl_handler *)phl_container_of(context,
+							struct rtw_phl_handler,
+							os_handler);
+	struct phl_info_t *phl_info = (struct phl_info_t *)phl_handler->context;
+
+	phl_ser_send_msg(phl_info, RTW_PHL_SER_EVENT_CHK);
 }
 #endif
 

@@ -63,7 +63,11 @@
 
 
 #ifdef RTW_PHL_TX
+#ifdef CONFIG_RTW_REDUCE_MEM
+#define RTW_MAX_FRAG_NUM 1 //max scatter number of a packet to xmit
+#else
 #define RTW_MAX_FRAG_NUM 10 //max scatter number of a packet to xmit
+#endif
 #define RTW_MAX_WL_HEAD	100
 #define RTW_MAX_WL_TAIL 100
 #define RTW_SZ_LLC	(SNAP_SIZE + sizeof(u16))
