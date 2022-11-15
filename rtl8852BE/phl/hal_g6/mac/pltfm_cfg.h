@@ -41,7 +41,7 @@
 
 /* 1: enable MAC debug messages */
 /* 0: disable MAC debug messages */
-#define MAC_AX_DBG_MSG_EN	1
+#define MAC_AX_DBG_MSG_EN	0
 
 /* Set debug message level */
 #define MAC_AX_MSG_LEVEL_TRACE		3
