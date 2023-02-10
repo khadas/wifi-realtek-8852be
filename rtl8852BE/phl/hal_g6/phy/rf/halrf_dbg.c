@@ -1073,15 +1073,15 @@ void halrf_pwr_table_dbg_cmd(struct rf_info *rf, char input[][16], u32 *_used,
 			 char *output, u32 *_out_len)
 {
 	struct halrf_pwr_info *pwr = &rf->pwr_info;
-	char *cmd[7] = {"-h", "rate", "limit", "limit_ru", "set_all", "set", "txshape"};
+	char *cmd[8] = {"-h", "rate", "limit", "limit_ru", "set_all", "set", "txshape", "constraint"};
 	u32 used = *_used;
 	u32 out_len = *_out_len;
 	u32 val = 0;
-	u32 tmp;
+	u32 tmp, tmp1, phy;
 	u8 i;
 
 	if (_os_strcmp(input[1], cmd[0]) == 0) {
-		for (i = 1; i < 7; i++)
+		for (i = 1; i < 8; i++)
 			RF_DBG_CNSL(out_len, used, output + used, out_len - used,
 				 "  %s\n", cmd[i]);
 	} else if (_os_strcmp(input[1], cmd[1]) == 0) {
@@ -1131,6 +1131,20 @@ void halrf_pwr_table_dbg_cmd(struct rf_info *rf, char input[][16], u32 *_used,
 			 "Set TX Shape = %d\n", tmp);
 
 		halrf_set_tx_shape(rf, (u8)tmp);
+	} else if (_os_strcmp(input[1], cmd[7]) == 0) {
+		_os_sscanf(input[2], "%d", &tmp);
+		_os_sscanf(input[3], "%d", &tmp1);
+
+		halrf_set_power_constraint (rf, HW_PHY_0, (u16)tmp, true);
+		RF_DBG_CNSL(out_len, used, output + used, out_len - used,
+			 "Set TX Constraint = %d.%ddB\n", tmp / 100, tmp % 100);
+
+		if (rf->hal_com->dbcc_en) {
+			halrf_set_power_constraint (rf, HW_PHY_1, (u16)tmp1, true);
+
+			RF_DBG_CNSL(out_len, used, output + used, out_len - used,
+				 "Set TX Constraint PHY1 = %d.%ddB\n", tmp1 / 100, tmp1 % 100);
+		}
 	} else
 		RF_DBG_CNSL(out_len, used, output + used, out_len - used,
 				 " No CMD find!!\n");

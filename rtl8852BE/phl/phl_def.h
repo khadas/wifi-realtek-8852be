@@ -250,6 +250,8 @@ struct rtw_para_pwrlmt_info_t {
 #define RTW_PHL_HANDLER_PRIO_NORMAL 1
 #define RTW_PHL_HANDLER_PRIO_LOW 2
 
+#define RTW_PHL_HANDLER_CB_NAME_LEN 32
+
 enum rtw_phl_evt {
 	RTW_PHL_EVT_RX = BIT0,
 	RTW_PHL_EVT_TX_RECYCLE = BIT1,
@@ -282,6 +284,7 @@ struct rtw_phl_handler {
 	void *drv_priv;
 	struct _os_handler os_handler;
 	void (*callback)(void *context);
+	char cb_name[RTW_PHL_HANDLER_CB_NAME_LEN];
 	void *context;
 };
 
@@ -641,6 +644,10 @@ enum phl_msg_evt_id {
 	MSG_EVT_SW_WATCHDOG = 116,
 	/* ltr */
 	MSG_EVT_LTR_TX_DLY = 199,
+
+	/* tx power */
+	MSG_EVT_TXPWR_SETUP = 150,
+
 	/* dbg */
 	MSG_EVT_DBG_SIP_REG_DUMP = 200,
 	MSG_EVT_DBG_FULL_REG_DUMP = 201,
@@ -2095,6 +2102,28 @@ struct rtw_dfs_t {
 };
 #endif
 
+struct txpwr_ctl_param {
+	enum phl_band_idx band_idx;
+
+	/*
+	* set true to write tx power setting to HW even if no configuration change
+	*/
+	bool force_write_txpwr;
+
+	/*
+	* tx power constraint in unit of mB (0.01dB)
+	* < 0: not set (keep original)
+	*/
+	s32 constraint_mb;
+};
+
+#define txpwr_ctl_param_init(param) \
+	do { \
+		(param)->band_idx = HW_BAND_MAX; \
+		(param)->force_write_txpwr = false; \
+		(param)->constraint_mb = -1; \
+	} while (0)
+
 #ifdef CONFIG_PHL_CHANNEL_INFO
 
 #define CHAN_INFO_MAX_SIZE 65535
@@ -2580,6 +2609,10 @@ struct rtw_phl_ppdu_phy_info {
 	u8 ch_idx;
 	u8 tx_bf;
 	u8 frame_type; /* type + subtype */
+	u8 snr_fd_avg;
+	u8 snr_fd[4];
+	u8 snr_td_avg;
+	u8 snr_td[4];
 };
 #ifdef CONFIG_PHY_INFO_NTFY
 struct rtw_phl_ppdu_sts_ntfy {

@@ -569,6 +569,11 @@ struct sta_info {
 	struct txsc_entry txsc_entry_cache[CORE_TXSC_ENTRY_NUM];
 	u8 debug_buf[CORE_TXSC_DEBUG_BUF_SIZE];
 #endif /* CONFIG_CORE_TXSC */
+	u32 snr_fd_total[4];
+	u32 snr_td_total[4];
+	u8 snr_fd_avg[4];
+	u8 snr_td_avg[4];
+	u32 snr_num;
 };
 
 #ifdef CONFIG_RTW_MESH

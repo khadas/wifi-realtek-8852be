@@ -66,6 +66,15 @@ void rtw_phl_proc_cmd(void *phl, char proc_cmd,
 	struct phl_info_t *phl_info = (struct phl_info_t *)phl;
 	struct hal_info_t *hal_info = (struct hal_info_t *)phl_info->hal;
 
+	/* Avoid string comparison mismatch since extra char '\n' was appended to buf */
+    if (incmd->in_type == RTW_ARG_TYPE_BUF
+            && incmd->in_cnt_len
+            && incmd->in.buf[incmd->in_cnt_len -1] == '\n'
+            ) {
+            incmd->in_cnt_len--;
+            incmd->in.buf[incmd->in_cnt_len] = '\0';
+    }
+
 	if (RTW_PROC_CMD_PHL == proc_cmd)
 		rtw_phl_dbg_proc_cmd(phl_info, incmd, output, out_len);
 	else if (RTW_PROC_CMD_CORE == proc_cmd)

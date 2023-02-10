@@ -466,7 +466,6 @@ ssize_t proc_set_sreset(struct file *file, const char __user *buffer, size_t cou
 #endif /* DBG_CONFIG_ERROR_DETECT */
 
 int proc_get_phy_adaptivity(struct seq_file *m, void *v);
-ssize_t proc_set_phy_adaptivity(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
 
 #ifdef CONFIG_DBG_COUNTER
 int proc_get_rx_logs(struct seq_file *m, void *v);
@@ -614,6 +613,8 @@ int proc_get_deny_legacy(struct seq_file *m, void *v);
 ssize_t proc_set_deny_legacy(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
 int proc_get_tx_ul_mu_disable(struct seq_file *m, void *v);
 ssize_t proc_set_tx_ul_mu_disable(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
+int proc_get_vcs(struct seq_file *m, void *v);
+ssize_t proc_set_vcs(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
 
 #define _drv_always_		1
 #define _drv_emerg_			2

@@ -35,6 +35,9 @@
 #define BTC_PHY_MAX 2
 #define BTC_NON_SHARED_ANT_FREERUN 0
 
+#define BTC_WL_MAX_ROLE_NUMBER 5 /* Must = MAX_WIFI_ROLE_NUMBER */
+
+
 #define BTC_SCBD_REWRITE_DELAY 1000
 #define BTC_MSG_MAXLEN 200
 #define BTC_POLICY_MAXLEN 512
@@ -929,7 +932,7 @@ struct btc_wl_role_info { /* struct size must be n*4 bytes */
 	u8 connect_cnt;
 	u8 link_mode;
 	union btc_wl_role_info_map role_map;
-	struct btc_wl_active_role active_role[MAX_WIFI_ROLE_NUMBER];
+	struct btc_wl_active_role active_role[BTC_WL_MAX_ROLE_NUMBER];
 	u32 mrole_type; /* btc_wl_mrole_type */
 	u32 mrole_noa_duration; /* ms */
 };
@@ -1154,7 +1157,7 @@ union btc_dm_error_map {
 };
 
 struct btc_wl_info {
-	struct btc_wl_link_info link_info[MAX_WIFI_ROLE_NUMBER];
+	struct btc_wl_link_info link_info[BTC_WL_MAX_ROLE_NUMBER];
 	struct btc_wl_rfk_info  rfk_info;
 	struct btc_wl_ver_info  ver_info;
 	struct btc_wl_afh_info afh_info;

@@ -1108,6 +1108,19 @@ u32 rtw_hal_mac_deinit(struct rtw_phl_com_t *phl_com,
 	return hal_status;
 }
 
+#ifdef CONFIG_PHL_CSUM_OFFLOAD_RX
+void rtw_hal_mac_parse_rxd_checksume(struct rtw_hal_com_t *hal,
+					struct rtw_r_meta_data *meta, u8 status)
+{
+	if ((status == MAC_AX_CHKSUM_OFD_IPV4_TCP_OK) ||
+		(status == MAC_AX_CHKSUM_OFD_IPV6_TCP_OK) ||
+		(status == MAC_AX_CHKSUM_OFD_IPV4_UDP_OK) ||
+		(status == MAC_AX_CHKSUM_OFD_IPV6_UDP_OK))
+		meta->chksum_status = 0;
+	else
+		meta->chksum_status = 1;
+}
+#endif
 
 #ifdef CONFIG_SDIO_HCI
 void rtw_hal_mac_sdio_cfg(struct rtw_phl_com_t *phl_com,
@@ -1501,19 +1514,6 @@ static void hal_mac_parse_rxpkt_info(struct mac_ax_rxpkt_info *info,
 #define GET_RX_AX_DESC_FWD_EN(__pRxStatusDesc) LE_BITS_TO_4BYTE(__pRxStatusDesc+20, 29, 1)
 #define GET_RX_AX_DESC_PL_MATCH(__pRxStatusDesc) LE_BITS_TO_4BYTE(__pRxStatusDesc+20, 30, 1)
 
-#ifdef CONFIG_PHL_CSUM_OFFLOAD_RX
-static void hal_mac_parse_rxd_checksume(struct rtw_hal_com_t *hal,
-					struct rtw_r_meta_data *meta, u8 status)
-{
-	if ((status == MAC_AX_CHKSUM_OFD_IPV4_TCP_OK) ||
-		(status == MAC_AX_CHKSUM_OFD_IPV6_TCP_OK) ||
-		(status == MAC_AX_CHKSUM_OFD_IPV4_UDP_OK) ||
-		(status == MAC_AX_CHKSUM_OFD_IPV6_UDP_OK))
-		meta->chksum_status = 0;
-	else
-		meta->chksum_status = 1;
-}
-#endif
 
 static void hal_mac_parse_rxd(struct rtw_hal_com_t *hal,
 			      u8 *rxd, struct rtw_r_meta_data *meta)
@@ -1660,7 +1660,7 @@ int rtw_hal_mac_sdio_parse_rx(struct rtw_hal_com_t *hal,
 
 			status = *(ptr + offset);
 			result = mac->ops->chk_rx_tcpip_chksum_ofd(mac, status);
-			hal_mac_parse_rxd_checksume(hal, &pkt->meta, result);
+			rtw_hal_mac_parse_rxd_checksume(hal, &pkt->meta, result);
 			offset += 8;
 		}
 #endif /* CONFIG_PHL_CSUM_OFFLOAD_RX */

@@ -2889,7 +2889,7 @@ u32 mpt_get_tx_power_finalabs_val(_adapter *padapter, u8 rf_path)
 	ptxpwr_arg.channel = pmppriv->channel;
 	ptxpwr_arg.bandwidth = pmppriv->bandwidth;
 	ptxpwr_arg.rate = pmppriv->rateidx;
-	ptxpwr_arg.rfpath = pmppriv->antenna_tx;
+	ptxpwr_arg.rfpath = pmppriv->antenna_trx;
 	ptxpwr_arg.beamforming = 0;
 	ptxpwr_arg.dcm = 0;
 	ptxpwr_arg.offset = 0;

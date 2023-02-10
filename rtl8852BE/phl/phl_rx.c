@@ -383,10 +383,15 @@ enum rtw_phl_status _phl_add_rx_pkt(struct phl_info_t *phl_info,
 	else
 		_os_atomic_set(drv, &ring->phl_idx, 0);
 
+#ifdef DEBUG_PHL_RX
+	phl_info->rx_stats.rx_pkt_core++;
+	if (recvpkt->mdata.pktlen == phl_info->cnt_rx_pktsz)
+		phl_info->rx_stats.rx_pktsz_core++;
+#endif
 #ifdef PHL_RX_BATCH_IND
 	phl_info->rx_new_pending = 1;
-	pstatus = RTW_PHL_STATUS_SUCCESS;
 #endif
+	pstatus = RTW_PHL_STATUS_SUCCESS;
 
 out:
 	_os_spinunlock(drv, &phl_info->rx_ring_lock, _bh, NULL);
@@ -753,6 +758,66 @@ void rtw_phl_flush_reorder_buf(void *phl, struct rtw_phl_stainfo_t *sta)
 
 }
 
+#ifdef PHL_RXSC_AMPDU
+static void _phl_rxsc_cache_entry(struct phl_info_t *phl_info,
+								struct phl_tid_ampdu_rx *r,
+								struct rtw_r_meta_data *meta)
+{
+	struct rtw_phl_com_t *phl_com = phl_info->phl_com;
+	struct rtw_rxsc_cache_entry *rxsc_entry = &phl_com->rxsc_entry;
+
+	_os_spinlock(phl_com->drv_priv, &rxsc_entry->rxsc_lock, _bh, NULL);
+	rxsc_entry->cached_rx_macid = meta->macid;
+	rxsc_entry->cached_rx_tid = meta->tid;
+	rxsc_entry->cached_rx_ppdu_cnt = meta->ppdu_cnt;
+	rxsc_entry->cached_rx_seq = meta->seq;
+	rxsc_entry->cached_r = r;
+	_os_spinunlock(phl_com->drv_priv, &rxsc_entry->rxsc_lock, _bh, NULL);
+
+#ifdef DEBUG_PHL_RX
+	phl_info->rx_stats.rxsc_ampdu[2]++;
+#endif
+}
+
+static bool _phl_rxsc_cache_check(struct phl_info_t *phl_info,
+									struct rtw_phl_rx_pkt *phl_rx,
+									struct rtw_r_meta_data *meta)
+{
+	struct rtw_phl_com_t *phl_com = phl_info->phl_com;
+	struct rtw_rxsc_cache_entry *rxsc_entry = &phl_com->rxsc_entry;
+	struct phl_tid_ampdu_rx *r;
+	u8 res = false;
+
+	if (PHL_MACID_MAX_NUM != rxsc_entry->cached_rx_macid) {
+		_os_spinlock(phl_com->drv_priv,
+				&rxsc_entry->rxsc_lock, _bh, NULL);
+		r = rxsc_entry->cached_r;
+		if (r) {
+			r->head_seq_num = seq_inc(r->head_seq_num);
+			phl_rx->r.rx_role = r->sta->wrole;
+			res = true;
+		} else {
+			PHL_ERR("[%s]RXSC: cached_r is NULL!\n", __func__);
+			/* reset cached macid & sta due to illegal cached_r */
+			rxsc_entry->cached_rx_macid = PHL_MACID_MAX_NUM;
+			res = false;
+		}
+		_os_spinunlock(phl_com->drv_priv,
+				&rxsc_entry->rxsc_lock, _bh, NULL);
+#ifdef DEBUG_PHL_RX
+		phl_info->rx_stats.rxsc_ampdu[1]++;
+#endif
+	} else {
+#ifdef DEBUG_PHL_RX
+		if (meta->ampdu)
+			phl_info->rx_stats.rxsc_ampdu[0]++;
+#endif
+	}
+	
+	return res;
+}
+#endif
+
 static bool phl_manage_sta_reorder_buf(struct phl_info_t *phl_info,
                                        struct rtw_phl_rx_pkt *pkt,
                                        struct phl_tid_ampdu_rx *r,
@@ -794,6 +859,10 @@ static bool phl_manage_sta_reorder_buf(struct phl_info_t *phl_info,
 		PHL_TRACE(COMP_PHL_RECV, _PHL_DEBUG_, "Rx drop: old seq 0x%03x head 0x%03x\n",
 				meta->seq, r->head_seq_num);
 		hci_trx_ops->recycle_rx_pkt(phl_info, pkt);
+#ifdef DEBUG_PHL_RX
+		phl_info->rx_stats.rx_drop_reorder++;
+		phl_info->rx_stats.reorder_seq_less++;
+#endif
 		return true;
 	}
 
@@ -816,6 +885,10 @@ static bool phl_manage_sta_reorder_buf(struct phl_info_t *phl_info,
 		PHL_TRACE(COMP_PHL_RECV, _PHL_DEBUG_, "Rx drop: old seq 0x%03x head 0x%03x\n",
 				meta->seq, r->head_seq_num);
 		hci_trx_ops->recycle_rx_pkt(phl_info, pkt);
+#ifdef DEBUG_PHL_RX
+		phl_info->rx_stats.rx_drop_reorder++;
+		phl_info->rx_stats.reorder_dup++;
+#endif
 		return true;
 	}
 
@@ -828,6 +901,9 @@ static bool phl_manage_sta_reorder_buf(struct phl_info_t *phl_info,
 	if (mpdu_seq_num == r->head_seq_num &&
 		r->stored_mpdu_num == 0) {
 		r->head_seq_num = seq_inc(r->head_seq_num);
+		#ifdef PHL_RXSC_AMPDU
+		_phl_rxsc_cache_entry(phl_info, r, meta);
+		#endif
 		return false;
 	}
 
@@ -836,6 +912,9 @@ static bool phl_manage_sta_reorder_buf(struct phl_info_t *phl_info,
 	r->reorder_time[index] = _os_get_cur_time_ms();
 	r->stored_mpdu_num++;
 	phl_reorder_release(phl_info, r, frames);
+#ifdef DEBUG_PHL_RX
+	phl_info->rx_stats.rx_put_reorder++;
+#endif
 
 	return true;
 
@@ -875,6 +954,11 @@ enum rtw_phl_status phl_rx_reorder(struct phl_info_t *phl_info,
 		  }
 	}
 
+	#ifdef PHL_RXSC_AMPDU
+	if (_phl_rxsc_cache_check(phl_info, phl_rx, meta))
+		goto dont_reorder;
+	#endif
+
 	if (phl_is_mp_mode(phl_info->phl_com))
 		goto dont_reorder;
 
@@ -901,20 +985,12 @@ enum rtw_phl_status phl_rx_reorder(struct phl_info_t *phl_info,
 	if (meta->addr_cam_vld)
 		sta = rtw_phl_get_stainfo_by_macid(phl_info, meta->macid);
 
-	/* Otherwise, search STA by TA */
-	if (!sta || !sta->wrole) {
-		struct rtw_wifi_role_t *wrole;
-		wrole = phl_get_wrole_by_addr(phl_info, meta->mac_addr);
-		if (wrole)
-			sta = rtw_phl_get_stainfo_by_addr(phl_info,
-			                                  wrole, meta->ta);
-		if (!wrole || !sta) {
-			PHL_TRACE(COMP_PHL_RECV, _PHL_WARNING_,
-			          "%s(): stainfo or wrole not found, cam=%u, macid=%u\n",
-			          __FUNCTION__, meta->addr_cam, meta->macid);
-			goto dont_reorder;
-		}
-	}
+	if (!sta) {
+        PHL_TRACE(COMP_PHL_RECV, _PHL_WARNING_,
+                  "%s(): stainfo not found, cam=%u, macid=%u\n",
+                  __FUNCTION__, meta->addr_cam, meta->macid);
+        goto dont_reorder;
+    }
 
 	phl_rx->r.tx_sta = sta;
 	phl_rx->r.rx_role = sta->wrole;
@@ -922,9 +998,10 @@ enum rtw_phl_status phl_rx_reorder(struct phl_info_t *phl_info,
 	rtw_hal_set_sta_rx_sts(sta, false, meta);
 
 	if (tid >= ARRAY_SIZE(sta->tid_rx)) {
-		PHL_TRACE(COMP_PHL_RECV, _PHL_ERR_, "Fail: tid (%u) index out of range (%u)\n", tid, 8);
-		goto drop_frame;
-	}
+ 		PHL_TRACE(COMP_PHL_RECV, _PHL_ERR_, "Fail: tid (%u) index out of range (%u)\n",
+            tid, (u32)ARRAY_SIZE(sta->tid_rx));
+        goto dont_reorder;
+    }
 
 	_os_spinlock(drv_priv, &sta->tid_rx_lock, _bh, NULL);
 
@@ -944,10 +1021,16 @@ enum rtw_phl_status phl_rx_reorder(struct phl_info_t *phl_info,
 	return RTW_PHL_STATUS_SUCCESS;
 
 drop_frame:
+#ifdef DEBUG_PHL_RX
+	phl_info->rx_stats.rx_drop_reorder++;
+#endif
 	hci_trx_ops->recycle_rx_pkt(phl_info, phl_rx);
 	return RTW_PHL_STATUS_FAILURE;
 
 dont_reorder:
+#ifdef DEBUG_PHL_RX
+	phl_info->rx_stats.rx_dont_reorder++;
+#endif
 	list_add_tail(&phl_rx->list, frames);
 	return RTW_PHL_STATUS_SUCCESS;
 }
@@ -1774,3 +1857,12 @@ void phl_rx_dbg_dump(struct phl_info_t *phl_info, u8 band_idx)
 			  __func__);
 	}
 }
+#ifdef CONFIG_PCI_HCI
+u32 rtw_phl_get_hw_cnt_rdu(void *phl)
+{
+     struct phl_info_t *phl_info = (struct phl_info_t *)phl;
+     struct rtw_hal_com_t *hal_com = rtw_hal_get_halcom(phl_info->hal);
+
+     return hal_com->trx_stat.rx_rdu_cnt;
+}
+#endif

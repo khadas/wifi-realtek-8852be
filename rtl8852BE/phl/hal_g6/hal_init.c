@@ -1559,3 +1559,29 @@ void rtw_hal_dbg_status_dump(void *hal, struct hal_mac_dbg_dump_cfg *cfg)
 	rtw_hal_mac_dbg_status_dump(hal_info, cfg);
 }
 
+enum rtw_hal_status rtw_hal_get_wl_dis_val(void *hal, bool *blocked)
+{
+	struct hal_info_t *hal_info = (struct hal_info_t *)hal;
+	enum rtw_hal_status hstatus = RTW_HAL_STATUS_FAILURE;
+	u8 val = 0;
+
+	hstatus = rtw_hal_mac_get_wl_dis_val(hal_info, &val);
+
+	if (RTW_HAL_STATUS_SUCCESS != hstatus) {
+		PHL_TRACE(COMP_PHL_DBG, _PHL_ERR_, "%s(): get wl dis val fail, status: %d\n",
+			  __func__, hstatus);
+		return hstatus;
+	}
+
+	/* get rf state */
+	if (val == 1) {	// RF ON
+		*blocked = 0;
+	} else if (val == 0) {	// RF OFF
+		*blocked = 1;
+	} else {
+		PHL_TRACE(COMP_PHL_DBG, _PHL_INFO_, "%s(): wl_dis is invalid value: %d\n",
+			  __func__, val);
+		hstatus = RTW_HAL_STATUS_FAILURE;
+	}
+	return hstatus;
+}

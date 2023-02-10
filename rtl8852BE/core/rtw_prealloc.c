@@ -159,7 +159,11 @@ MODULE_PARM_DESC(rtkm_mem_exp, "Preallocated memory expansion");
 
 #ifndef RTKM_MPOOL_7
 #ifdef CONFIG_RTW_REDUCE_MEM
+#ifdef CONFIG_PLATFORM_AML_S905_L3A
+#define RTKM_MPOOL_7 CONFIG_IFACE_NUMBER+1
+#else
 #define RTKM_MPOOL_7 0
+#endif
 #else
 #define RTKM_MPOOL_7 1*CONFIG_IFACE_NUMBER
 #endif

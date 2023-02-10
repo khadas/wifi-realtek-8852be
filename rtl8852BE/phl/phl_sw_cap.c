@@ -541,7 +541,7 @@ _phl_init_protocol_cap(struct phl_info_t *phl_info,
 		    (1 == proto_role_cap->he_mu_bfme) ||
 		    (1 == proto_role_cap->non_trig_cqi_fb)||
 		    (1 == proto_role_cap->trig_cqi_fb)) {
-			proto_role_cap->bfme_sts = 3;
+			proto_role_cap->bfme_sts = 7;
 			proto_role_cap->bfme_sts_greater_80mhz = 0;
 			proto_role_cap->max_nc = 1;
 		} else {
@@ -703,7 +703,7 @@ _phl_init_protocol_cap(struct phl_info_t *phl_info,
 		    (1 == proto_role_cap->he_mu_bfme) ||
 		    (1 == proto_role_cap->non_trig_cqi_fb) ||
 		    (1 == proto_role_cap->trig_cqi_fb)) {
-			proto_role_cap->bfme_sts = 3;
+			proto_role_cap->bfme_sts = 7;
 			proto_role_cap->bfme_sts_greater_80mhz = 0;
 			proto_role_cap->max_nc = 1;
 		} else {

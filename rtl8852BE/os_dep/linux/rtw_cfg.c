@@ -95,8 +95,9 @@ int rtw_scan_mode = 1;/* active, passive */
 #ifndef CONFIG_RTW_LPS_RFOFF
 	int rtw_lps_cap = PS_CAP_PWRON |
 			PS_CAP_RF_OFF |
-			PS_CAP_CLK_GATED |
+			PS_CAP_CLK_GATED;/* |
 			PS_CAP_PWR_GATED;
+			*/
 #else
 	int rtw_lps_cap = PS_CAP_PWRON |
 			PS_CAP_RF_OFF;
@@ -688,6 +689,11 @@ int rtw_adaptivity_th_edcca_hl_diff = CONFIG_RTW_ADAPTIVITY_TH_EDCCA_HL_DIFF;
 module_param(rtw_adaptivity_th_edcca_hl_diff, int, 0644);
 MODULE_PARM_DESC(rtw_adaptivity_th_edcca_hl_diff, "th_edcca_hl_diff for Adaptivity");
 
+
+int rtw_adaptivity_idle_probability = 0;
+module_param(rtw_adaptivity_idle_probability, int, 0644);
+MODULE_PARM_DESC(rtw_adaptivity_idle_probability, "rtw_adaptivity_idle_probability");
+
 #ifdef CONFIG_DFS_MASTER
 uint rtw_dfs_region_domain = CONFIG_RTW_DFS_REGION_DOMAIN;
 module_param(rtw_dfs_region_domain, uint, 0644);
@@ -1255,6 +1261,8 @@ void rtw_core_update_default_setting (struct dvobj_priv *dvobj)
 	phl_com->bus_sw_cap.rpbd_num = 0;	/* by default */
 #ifdef CONFIG_RXBUF_NUM_1024
 	phl_com->bus_sw_cap.rxbuf_num = 1024;
+#elif defined (CONFIG_RXBUF_NUM_2048)
+	phl_com->bus_sw_cap.rxbuf_num = 2048;
 #else
 	phl_com->bus_sw_cap.rxbuf_num = 512;
 #endif
@@ -1478,6 +1486,18 @@ uint rtw_load_registry(_adapter *padapter)
 	else if (is_supported_5g(registry_par->band_type) && (!is_supported_24g(registry_par->band_type))
 		 && (registry_par->channel <= 14))
 		registry_par->channel = 36;
+
+	registry_par->adaptivity_en = (u8)rtw_adaptivity_en;
+	registry_par->adaptivity_mode = (u8)rtw_adaptivity_mode;
+	registry_par->adaptivity_th_l2h_ini = (s8)rtw_adaptivity_th_l2h_ini;
+	registry_par->adaptivity_th_edcca_hl_diff = (s8)rtw_adaptivity_th_edcca_hl_diff;
+	registry_par->adaptivity_idle_probability = (u8)rtw_adaptivity_idle_probability;
+
+	if (registry_par->adaptivity_idle_probability == 1) {
+		rtw_vrtl_carrier_sense = DISABLE_VCS;
+		rtw_vcs_type = NONE_VCS;
+		rtw_hw_rts_en = 0;
+	}
 
 	registry_par->vrtl_carrier_sense = (u8)rtw_vrtl_carrier_sense ;
 	registry_par->vcs_type = (u8)rtw_vcs_type;
@@ -1709,11 +1729,6 @@ int rtw_stbc_cap = 0x13;
 
 	registry_par->hiq_filter = (u8)rtw_hiq_filter;
 
-	registry_par->adaptivity_en = (u8)rtw_adaptivity_en;
-	registry_par->adaptivity_mode = (u8)rtw_adaptivity_mode;
-	registry_par->adaptivity_th_l2h_ini = (s8)rtw_adaptivity_th_l2h_ini;
-	registry_par->adaptivity_th_edcca_hl_diff = (s8)rtw_adaptivity_th_edcca_hl_diff;
-
 	registry_par->boffefusemask = (u8)rtw_OffEfuseMask;
 	registry_par->bFileMaskEfuse = (u8)rtw_FileMaskEfuse;
 	registry_par->bBTFileMaskEfuse = (u8)rtw_FileMaskEfuse;
@@ -1859,8 +1874,10 @@ static void rtw_cfg_adaptivity_mode_msg(void *sel, _adapter *adapter)
 
 void rtw_cfg_adaptivity_config_msg(void *sel, _adapter *adapter)
 {
+	struct registry_priv *regsty = &adapter->registrypriv;
 	rtw_cfg_adaptivity_en_msg(sel, adapter);
 	rtw_cfg_adaptivity_mode_msg(sel, adapter);
+	_RTW_PRINT_SEL(sel, "adaptivity_idle_probability = %u\n", regsty->adaptivity_idle_probability);
 }
 
 bool rtw_cfg_adaptivity_needed(_adapter *adapter)

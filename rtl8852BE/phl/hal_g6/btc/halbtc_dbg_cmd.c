@@ -227,7 +227,7 @@ static void _show_wl_role_info(struct btc_t *btc, u32 *used, char input[][MAX_AR
 			 wl_dinfo->real_band[HW_PHY_1]);
 	}
 
-	for (i = 0; i < MAX_WIFI_ROLE_NUMBER; i++) {
+	for (i = 0; i < BTC_WL_MAX_ROLE_NUMBER; i++) {
 		plink = &btc->cx.wl.link_info[i];
 
 		if (!plink->active)
@@ -1933,7 +1933,7 @@ static void _cmd_set_wl_tx_1ss(struct btc_t *btc, u32 *used,
 	enable = enable_input == 1 ? true : false;
 
 	if (port_id == 0xFFFFFFFF) {
-		for( j = 0; j < MAX_WIFI_ROLE_NUMBER; j++) {
+		for( j = 0; j < BTC_WL_MAX_ROLE_NUMBER; j++) {
 			set_reult = _btc_set_wl_tx_1ss(btc, j, enable);
 			if (set_reult == 1)
 				BTC_CNSL(out_len,
@@ -1941,7 +1941,7 @@ static void _cmd_set_wl_tx_1ss(struct btc_t *btc, u32 *used,
 					 "port %d set 1ss to %d fail\n",
 					 j, enable);
 		}
-	} else if (port_id < MAX_WIFI_ROLE_NUMBER) {
+	} else if (port_id < BTC_WL_MAX_ROLE_NUMBER) {
 		set_reult = _btc_set_wl_tx_1ss(btc, (u8)(port_id & 0xFF),
 					       enable);
 		if (set_reult == 1)

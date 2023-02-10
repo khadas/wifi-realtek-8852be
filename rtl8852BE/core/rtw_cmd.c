@@ -912,9 +912,9 @@ u8 rtw_joinbss_cmd(_adapter *padapter, struct wlan_network *pnetwork)
 	pqospriv->qos_option = 0;
 
 	if (pregistrypriv->wmm_enable) {
-#ifdef CONFIG_WMMPS_STA	
+#ifdef CONFIG_WMMPS_STA
 		rtw_uapsd_use_default_setting(padapter);
-#endif /* CONFIG_WMMPS_STA */		
+#endif /* CONFIG_WMMPS_STA */
 		tmp_len = rtw_restruct_wmm_ie(padapter, &pnetwork->network.IEs[0], &psecnetwork->IEs[0], pnetwork->network.IELength, psecnetwork->IELength);
 
 		if (psecnetwork->IELength != tmp_len) {
@@ -922,6 +922,7 @@ u8 rtw_joinbss_cmd(_adapter *padapter, struct wlan_network *pnetwork)
 			pqospriv->qos_option = 1; /* There is WMM IE in this corresp. beacon */
 		} else {
 			pqospriv->qos_option = 0;/* There is no WMM IE in this corresp. beacon */
+			RTW_INFO("%s follow wifi logo,no WMM IE will be legacy mode \n", __func__);
 		}
 	}
 
@@ -938,7 +939,7 @@ u8 rtw_joinbss_cmd(_adapter *padapter, struct wlan_network *pnetwork)
 	phtpriv->ht_option = _FALSE;
 	if (pregistrypriv->ht_enable && is_supported_ht(pregistrypriv->wireless_mode)) {
 		ptmp = rtw_get_ie(&pnetwork->network.IEs[12], _HT_CAPABILITY_IE_, &tmp_len, pnetwork->network.IELength - 12);
-		if (ptmp && tmp_len > 0) {
+		if (ptmp && tmp_len > 0 && (pqospriv->qos_option == 1)) {
 			/*	Added by Albert 2010/06/23 */
 			/*	For the WEP mode, we will use the bg mode to do the connection to avoid some IOT issue. */
 			/*	Especially for Realtek 8192u SoftAP. */
@@ -960,6 +961,7 @@ u8 rtw_joinbss_cmd(_adapter *padapter, struct wlan_network *pnetwork)
 	if (phtpriv->ht_option
 		&& REGSTY_IS_11AC_ENABLE(pregistrypriv)
 		&& is_supported_vht(pregistrypriv->wireless_mode)
+		&& (pqospriv->qos_option == 1)
 		&& ((req_chplan && COUNTRY_CHPLAN_EN_11AC(req_chplan))
 			|| (!req_chplan && RFCTL_REG_EN_11AC(rfctl)))
 	) {
@@ -985,6 +987,7 @@ u8 rtw_joinbss_cmd(_adapter *padapter, struct wlan_network *pnetwork)
 	    )
 		&& REGSTY_IS_11AX_ENABLE(pregistrypriv)
 		&& is_supported_he(pregistrypriv->wireless_mode)
+		&& (pqospriv->qos_option == 1)
 		&& ((req_chplan && COUNTRY_CHPLAN_EN_11AX(req_chplan))
 			|| (!req_chplan && RFCTL_REG_EN_11AX(rfctl)))
 	) {
@@ -1064,9 +1067,10 @@ static u8 sta_disassoc_cmd(struct _ADAPTER *a, u32 deauth_timeout_ms, int flags)
 
 	status = rtw_disconnect_cmd(a, cmd);
 	if (status != RTW_PHL_STATUS_SUCCESS) {
-		/* param & cmd would be freed in rtw_enqueue_cmd() */
 		RTW_ERR(FUNC_ADPT_FMT ": send disconnect cmd FAIL!(0x%x)\n",
 			FUNC_ADPT_ARG(a), status);
+		rtw_mfree((u8 *)param, sizeof(*param));
+		rtw_mfree((u8 *)cmd, sizeof(*cmd));
 		goto exit;
 	}
 	res = _SUCCESS;

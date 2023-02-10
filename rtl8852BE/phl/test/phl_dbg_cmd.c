@@ -142,9 +142,6 @@ phl_dbg_core_proc_cmd(struct phl_info_t *phl_info,
 		}
 	} while (argc < MAX_ARGC);
 
-	if (argc == 1)
-		argv[0][_os_strlen((u8 *)argv[0])] = '\0';
-
 	phl_dbg_core_cmd_parser(phl_info, argv, argc, output, out_len);
 
 	return 0;
@@ -452,6 +449,144 @@ void _dump_rx_rate(struct phl_info_t *phl_info, char input[][MAX_ARGV],
 			);
 
 }
+
+#ifdef DEBUG_PHL_RX
+void _dump_phl_rx(struct phl_info_t *phl_info, char *output, u32 out_len)
+{
+	struct phl_rx_stats *rx_stats = &phl_info->rx_stats;
+	struct rtw_hal_com_t *hal_com = rtw_hal_get_halcom(phl_info->hal);
+	u32 used = 0;
+	u16 rxbd_num = (u16)hal_com->bus_cap.rxbd_num;
+
+	PHL_DBG_MON_INFO(out_len, used, output + used, out_len - used,
+		"rx_isr=%u\n", rx_stats->rx_isr);
+	PHL_DBG_MON_INFO(out_len, used, output + used, out_len - used,
+		"phl_rx=%u\n", rx_stats->phl_rx);
+
+#ifdef CONFIG_PCI_HCI
+	PHL_DBG_MON_INFO(out_len, used, output + used, out_len - used,
+		"rdu=%u\n", rtw_phl_get_hw_cnt_rdu(phl_info));
+
+	do {
+		struct hci_info_t *hci_info = (struct hci_info_t *)phl_info->hci;
+		struct rtw_rx_buf_ring *rx_buf_ring;
+		u8 ch;
+
+		for (ch = 0; ch < hci_info->total_rxch_num; ch++) {
+			u16 rxcnt, host_idx, hw_idx;
+			rxcnt = rtw_hal_rx_res_query(phl_info->hal, ch, &host_idx, &hw_idx);
+			PHL_DBG_MON_INFO(out_len, used, output + used, out_len - used,
+				"rxbd[%d]: host_idx=%3u,hw_idx=%3u,num=%3u,avail=%u\n",
+				ch, host_idx, hw_idx, rxbd_num, rxcnt);
+		}
+
+		rx_buf_ring = (struct rtw_rx_buf_ring *)phl_info->hci->rxbuf_pool;
+
+		for (ch = 0; ch < hci_info->total_rxch_num; ch++) {
+#ifdef CONFIG_DYNAMIC_RX_BUF
+			if (ch == 0)
+				PHL_DBG_MON_INFO(out_len, used, output + used, out_len - used,
+					"rxbuf_pool[%d]: idle_rxbuf_cnt=%3u,busy_rxbuf_cnt=%3u,empty_rxbuf_cnt=%u\n",
+					ch, rx_buf_ring[ch].idle_rxbuf_cnt, rx_buf_ring[ch].busy_rxbuf_cnt,
+					rx_buf_ring[ch].empty_rxbuf_cnt);
+			else
+#endif
+				PHL_DBG_MON_INFO(out_len, used, output + used, out_len - used,
+					"rxbuf_pool[%d]: idle_rxbuf_cnt=%3u,busy_rxbuf_cnt=%3u\n",
+					ch, rx_buf_ring[ch].idle_rxbuf_cnt, rx_buf_ring[ch].busy_rxbuf_cnt);
+		}
+	} while (0);
+#endif /* CONFIG_PCI_HCI */
+
+	do {
+		struct rtw_phl_rx_ring *ring = &phl_info->phl_rx_ring;
+		u16 wptr, rptr, ring_res;
+
+		wptr = (u16)_os_atomic_read(phl_to_drvpriv(phl_info), &ring->phl_idx);
+		rptr = (u16)_os_atomic_read(phl_to_drvpriv(phl_info), &ring->core_idx);
+		ring_res = phl_calc_avail_rptr(rptr, wptr, MAX_PHL_RING_ENTRY_NUM);
+
+		PHL_DBG_MON_INFO(out_len, used, output + used, out_len - used,
+			"phl_rx_ring: phl_idx=%d,core_idx=%d,num=%d,rx_pkt_num=%d\n",
+			wptr, rptr, MAX_PHL_RING_ENTRY_NUM, ring_res);
+	} while (0);
+
+	do {
+		struct phl_rx_pkt_pool *rx_pkt_pool;
+
+		rx_pkt_pool = (struct phl_rx_pkt_pool *)phl_info->rx_pkt_pool;
+		PHL_DBG_MON_INFO(out_len, used, output + used, out_len - used,
+			"phl_rx_pkt_pool: total=%d,idle_cnt=%d\n",
+			MAX_PHL_RING_RX_PKT_NUM, rx_pkt_pool->idle_cnt);
+	} while (0);
+
+	PHL_DBG_MON_INFO(out_len, used, output + used, out_len - used,
+		"rx_type: all=%u,wifi=%u,wp=%u,ppdu=%u,c2h=%u\n",
+		rx_stats->rx_type_all,
+		rx_stats->rx_type_wifi, rx_stats->rx_type_wp,
+		rx_stats->rx_type_ppdu, rx_stats->rx_type_c2h);
+	PHL_DBG_MON_INFO(out_len, used, output + used, out_len - used,
+		"amsdu=%u\n", rx_stats->rx_amsdu);
+	PHL_DBG_MON_INFO(out_len, used, output + used, out_len - used,
+		"drop@get_single_rx=%u (rx_rdy=%u,rxbd=%u)\n",
+		rx_stats->rx_drop_get, rx_stats->rx_rdy_fail, rx_stats->rxbd_fail);
+	PHL_DBG_MON_INFO(out_len, used, output + used, out_len - used,
+		"drop@reorder=%u (seq_less=%u,dup=%u)\n",
+		rx_stats->rx_drop_reorder,
+		rx_stats->reorder_seq_less, rx_stats->reorder_dup);
+	PHL_DBG_MON_INFO(out_len, used, output + used, out_len - used,
+		"reorder: dont=%u,put=%u (total=%u)\n",
+		rx_stats->rx_dont_reorder, rx_stats->rx_put_reorder,
+		rx_stats->rx_dont_reorder + rx_stats->rx_put_reorder);
+#ifdef PHL_RXSC_AMPDU
+	PHL_DBG_MON_INFO(out_len, used, output + used, out_len - used,
+		"ampdu: orig=%u,rxsc=%u (add=%u)\n",
+		rx_stats->rxsc_ampdu[0], rx_stats->rxsc_ampdu[1],
+		rx_stats->rxsc_ampdu[2]);
+#endif
+#ifdef CONFIG_DYNAMIC_RX_BUF
+	PHL_DBG_MON_INFO(out_len, used, output + used, out_len - used,
+		"rxbuf_empty=%u\n", rx_stats->rxbuf_empty);
+#endif
+
+	PHL_DBG_MON_INFO(out_len, used, output + used, out_len - used,
+		"cnt_rx_pktsz =%u\n", phl_info->cnt_rx_pktsz);
+	PHL_DBG_MON_INFO(out_len, used, output + used, out_len - used,
+		"rx_pktsz     =%u\n", rx_stats->rx_pktsz_phl);
+	PHL_DBG_MON_INFO(out_len, used, output + used, out_len - used,
+		"rx_pktsz_core=%u\n", rx_stats->rx_pktsz_core);
+	PHL_DBG_MON_INFO(out_len, used, output + used, out_len - used,
+		"rx_pkt       =%u\n", rx_stats->rx_type_wifi);
+	PHL_DBG_MON_INFO(out_len, used, output + used, out_len - used,
+		"rx_pkt_core  =%u\n", rx_stats->rx_pkt_core);
+
+}
+
+void phl_dbg_cmd_phl_rx(struct phl_info_t *phl_info, char input[][MAX_ARGV],
+				u32 input_num, char *output, u32 out_len)
+{
+	u32 used = 0;
+
+	if (1 == input_num) {
+		_dump_phl_rx(phl_info, output, out_len);
+	} else if (!_os_strcmp(input[1], "clear")) {
+		_os_mem_set(phl_to_drvpriv(phl_info), &phl_info->rx_stats,
+			0, sizeof(phl_info->rx_stats));
+	} else if (!_os_strcmp(input[1], "cnt_rx_pktsz")) {
+		int value;
+		if (input_num > 2 && _os_sscanf(input[2], "%d", &value) == 1)
+			phl_info->cnt_rx_pktsz = value;
+	} else if (!_os_strcmp(input[1], "sched_phl_rx")) {
+		PHL_DBG_MON_INFO(out_len, used, output + used, out_len - used,
+			"Schedule PHL RX!\n");
+		rtw_phl_start_rx_process(phl_info);
+	} else if (!_os_strcmp(input[1], "sched_core_rx")) {
+		PHL_DBG_MON_INFO(out_len, used, output + used, out_len - used,
+			"Schedule Core RX!\n");
+		_phl_indic_new_rxpkt(phl_info);
+	}
+}
+#endif /* DEBUG_PHL_RX */
 
 static const char *_get_mac_pwr_st_str(enum rtw_mac_pwr_st st)
 {
@@ -1260,6 +1395,13 @@ void phl_dbg_cmd_parser(struct phl_info_t *phl_info, char input[][MAX_ARGV],
 		_dump_rx_rate(phl_info, input, input_num, output, out_len);
 	}
 	break;
+#ifdef DEBUG_PHL_RX
+	case PHL_DBG_PHL_RX:
+	{
+		phl_dbg_cmd_phl_rx(phl_info, input, input_num, output, out_len);
+	}
+	break;
+#endif
 	case PHL_DBG_SOUND :
 	{
 		phl_dbg_cmd_snd(phl_info, input, input_num, output, out_len);
@@ -1416,9 +1558,6 @@ phl_dbg_proc_cmd(struct phl_info_t *phl_info,
 			break;
 		}
 	} while (argc < MAX_ARGC);
-
-	if (argc == 1)
-		argv[0][_os_strlen((u8 *)argv[0])] = '\0';
 
 	phl_dbg_cmd_parser(phl_info, argv, argc, output, out_len);
 

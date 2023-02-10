@@ -982,6 +982,9 @@ const char *rtw_hal_get_pw_lmt_regu_type_str(void *hal, enum band_type band);
 
 bool rtw_hal_get_pwr_lmt_en(void *hal, u8 band_idx);
 
+u16 rtw_hal_get_pwr_constraint(void *hal, u8 band_idx);
+enum rtw_hal_status rtw_hal_set_pwr_constraint(void *hal, u8 band_idx, u16 mb);
+
 enum rtw_hal_status rtw_hal_set_tx_power(void *hal, u8 band_idx,
 					enum phl_pwr_table pwr_table);
 
@@ -991,4 +994,6 @@ enum rtw_hal_status rtw_hal_get_txinfo_power(
 
 u32 rtw_hal_get_phy_stat_info(void *hal, enum phl_band_idx hw_band,
 			      enum phl_stat_info_query phy_stat);
+
+enum rtw_hal_status rtw_hal_get_wl_dis_val(void *hal, bool *blocked);
 #endif /*_HAL_API_H_*/

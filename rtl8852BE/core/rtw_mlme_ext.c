@@ -7393,15 +7393,6 @@ void _issue_assocreq(_adapter *padapter, u8 is_reassoc)
 			} else
 #endif
 			{
-#ifdef CONFIG_IOCTL_CFG80211
-				if (rtw_sec_chk_auth_alg(padapter, WLAN_AUTH_OPEN) &&
-					rtw_sec_chk_auth_type(padapter, MLME_AUTHTYPE_SAE)) {
-					s32 entry = rtw_cached_pmkid(padapter, pmlmepriv->assoc_bssid);
-
-					rtw_rsn_sync_pmkid(padapter, (u8 *)pIE, (pIE->Length + 2), entry);
-				}
-#endif /* CONFIG_IOCTL_CFG80211 */
-
 				pframe = rtw_set_ie(pframe, EID_WPA2, pIE->Length, pIE->data, &(pattrib->pktlen));
 				/* tmp: update rsn's spp related opt. */
 				/*rtw_set_spp_amsdu_mode(padapter->registrypriv.amsdu_mode, pframe - (pIE->Length + 2), pIE->Length +2); */
@@ -8178,6 +8169,11 @@ void issue_action_SA_Query(_adapter *padapter, unsigned char *raddr, unsigned ch
 			psta = rtw_get_stainfo(pstapriv, pwlanhdr->addr1);
 			if (psta != NULL) {
 				/* RTW_INFO("%s, %d, set dot11w_expire_timer\n", __func__, __LINE__); */
+				if (_check_timer_is_active(&psta->dot11w_expire_timer)){
+					/* The timer is active, do not set it again */
+					rtw_free_xmitframe(&padapter->xmitpriv, pmgntframe);
+					return;
+				}
 				_set_timer(&psta->dot11w_expire_timer, 1000);
 			}
 		}
@@ -10452,6 +10448,15 @@ int rtw_set_hw_after_join(struct _ADAPTER *a, int join_res)
 
 	/*reset counter for accumulated false alarm counter*/
 	ATOMIC_SET((ATOMIC_T *)&dvobj->fa_cnt_acc, 0);
+
+#if defined (CONFIG_80211AX_HE) && defined (CONFIG_WKARD_ULMU)
+	if (a->mlmeextpriv.cur_wireless_mode & WLAN_MD_11AX) {
+		if ((a->mlmeextpriv.chandef.band == BAND_ON_24G) &&
+				(a->mlmeextpriv.chandef.bw == CHANNEL_WIDTH_40)) {
+			rtw_he_om_ctrl_ulmu_dis(a);
+		}
+	}
+#endif
 
 	return err;
 }
@@ -13559,9 +13564,8 @@ u8 rtw_set_chplan_hdl(_adapter *padapter, unsigned char *pbuf)
 	LPS_Leave(padapter, "SET_CHPLAN");
 	#endif
 
-	if (rtw_phl_get_pwr_lmt_en(GET_PHL_INFO(rfctl_to_dvobj(rfctl)), padapter->phl_role->hw_band)
-		&& rtw_hw_is_init_completed(dvobj))
-		rtw_update_phl_txpwr_level(padapter);
+	if (rtw_txpwr_hal_get_pwr_lmt_en(dvobj) && rtw_hw_is_init_completed(dvobj))
+		rtw_update_txpwr_level(dvobj, HW_BAND_MAX);
 
 exit:
 	return	H2C_SUCCESS;

@@ -1452,6 +1452,7 @@ _general_mdl_msg_hdlr(struct cmd_ps *ps, struct phl_msg *msg)
 	case MSG_EVT_STA_MEDIA_STATUS_UPT:
 	case MSG_EVT_CFG_CHINFO:
 	case MSG_EVT_STA_CHG_STAINFO:
+	case MSG_EVT_TXPWR_SETUP:
 #ifdef RTW_WKARD_LINUX_CMD_WKARD
 	case MSG_EVT_LINUX_CMD_WRK_TRI_PS:
 #endif /* RTW_WKARD_LINUX_CMD_WKARD */

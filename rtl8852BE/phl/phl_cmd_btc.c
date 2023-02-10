@@ -382,6 +382,12 @@ bool rtw_phl_btc_send_cmd(struct rtw_phl_com_t *phl_com,
 	struct phl_msg msg = {0};
 	struct phl_msg_attribute attr = {0};
 
+	if (!(phl_com->dev_state & 0x1)) {
+		PHL_ERR("%s: phl_com->dev_state is wrong(%d)\n", __func__,
+				phl_com->dev_state);
+		return false;
+	}
+
 	msg.inbuf = buf;
 	msg.inlen = len;
 	SET_MSG_MDL_ID_FIELD(msg.msg_id, PHL_MDL_BTC);

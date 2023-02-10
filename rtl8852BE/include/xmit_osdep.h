@@ -26,7 +26,7 @@ struct pkt_file {
 };
 
 #ifdef CONFIG_RTW_REDUCE_MEM
-#define NR_XMITFRAME		512
+#define NR_XMITFRAME		CORE_NR_XMITFRAME
 #else
 #define NR_XMITFRAME		1256
 #endif

@@ -178,6 +178,7 @@ void _phl_dump_wp_stats(struct phl_info_t *phl_info)
 
 void _phl_dump_busy_wp(struct phl_info_t *phl_info)
 {
+#ifdef CONFIG_RTW_DEBUG
 	struct hci_info_t *hci_info = (struct hci_info_t *)phl_info->hci;
 	struct rtw_wd_page_ring *wd_ring = NULL;
 	struct rtw_xmit_req *treq = NULL;
@@ -185,6 +186,9 @@ void _phl_dump_busy_wp(struct phl_info_t *phl_info)
 	u16 wp_seq = 0;
 	u8 ch = 0;
 
+	if (!(COMP_PHL_XMIT & phl_log_components)
+        || !(_PHL_DEBUG_ <= phl_log_level))
+		return;
 	wd_ring = (struct rtw_wd_page_ring *)hci_info->wd_ring;
 	PHL_TRACE(COMP_PHL_XMIT, _PHL_DEBUG_,
 		  "\n== dump busy wp == \n");
@@ -203,8 +207,7 @@ void _phl_dump_busy_wp(struct phl_info_t *phl_info)
 			}
 		}
 	}
-
-
+#endif /* CONFIG_RTW_DEBUG */
 }
 
 u8 _phl_check_recycle(u16 target, u16 rptr, u16 wptr, u16 bndy)
@@ -236,12 +239,14 @@ void phl_tx_start_pcie(struct phl_info_t *phl_info)
 {
 	void *drv = phl_to_drvpriv(phl_info);
 	_os_atomic_set(drv, &phl_info->phl_sw_tx_sts, PHL_TX_STATUS_RUNNING);
+	PHL_WARN("%s: set PHL_TX_STATUS_RUNNING\n", __FUNCTION__);
 }
 
 void phl_tx_resume_pcie(struct phl_info_t *phl_info)
 {
 	void *drv = phl_to_drvpriv(phl_info);
 	_os_atomic_set(drv, &phl_info->phl_sw_tx_sts, PHL_TX_STATUS_RUNNING);
+	PHL_WARN("%s: set PHL_TX_STATUS_RUNNING\n", __FUNCTION__);
 }
 
 void phl_req_tx_stop_pcie(struct phl_info_t *phl_info)
@@ -249,12 +254,14 @@ void phl_req_tx_stop_pcie(struct phl_info_t *phl_info)
 	void *drv = phl_to_drvpriv(phl_info);
 	_os_atomic_set(drv, &phl_info->phl_sw_tx_sts,
 				PHL_TX_STATUS_STOP_INPROGRESS);
+	PHL_WARN("%s: set PHL_TX_STATUS_STOP_INPROGRESS\n", __FUNCTION__);
 }
 
 void phl_tx_stop_pcie(struct phl_info_t *phl_info)
 {
 	void *drv = phl_to_drvpriv(phl_info);
 	_os_atomic_set(drv, &phl_info->phl_sw_tx_sts, PHL_TX_STATUS_SW_PAUSE);
+	PHL_WARN("%s: set PHL_TX_STATUS_SW_PAUSE\n", __FUNCTION__);
 }
 
 bool phl_is_tx_sw_pause_pcie(struct phl_info_t *phl_info)
@@ -273,12 +280,14 @@ void phl_rx_start_pcie(struct phl_info_t *phl_info)
 {
 	void *drv = phl_to_drvpriv(phl_info);
 	_os_atomic_set(drv, &phl_info->phl_sw_rx_sts, PHL_RX_STATUS_RUNNING);
+	PHL_WARN("%s: set PHL_RX_STATUS_RUNNING\n", __FUNCTION__);
 }
 
 void phl_rx_resume_pcie(struct phl_info_t *phl_info)
 {
 	void *drv = phl_to_drvpriv(phl_info);
 	_os_atomic_set(drv, &phl_info->phl_sw_rx_sts, PHL_RX_STATUS_RUNNING);
+	PHL_WARN("%s: set PHL_RX_STATUS_RUNNING\n", __FUNCTION__);
 }
 
 void phl_req_rx_stop_pcie(struct phl_info_t *phl_info)
@@ -286,12 +295,14 @@ void phl_req_rx_stop_pcie(struct phl_info_t *phl_info)
 	void *drv = phl_to_drvpriv(phl_info);
 	_os_atomic_set(drv, &phl_info->phl_sw_rx_sts,
 				PHL_RX_STATUS_STOP_INPROGRESS);
+	PHL_WARN("%s: set PHL_RX_STATUS_STOP_INPROGRESS\n", __FUNCTION__);
 }
 
 void phl_rx_stop_pcie(struct phl_info_t *phl_info)
 {
 	void *drv = phl_to_drvpriv(phl_info);
 	_os_atomic_set(drv, &phl_info->phl_sw_rx_sts, PHL_RX_STATUS_SW_PAUSE);
+	PHL_WARN("%s: set PHL_RX_STATUS_SW_PAUSE\n", __FUNCTION__);
 }
 
 bool phl_is_rx_sw_pause_pcie(struct phl_info_t *phl_info)
@@ -678,7 +689,7 @@ _phl_free_wd_work_ring(struct phl_info_t *phl_info,
 			       	(_dma *)&wd_page_ring->wd_work[i].phy_addr_h,
 			       	wd_page_ring->wd_work[i].buf_len,
 				wd_page_ring->wd_work[i].cache,
-				PCI_DMA_FROMDEVICE,
+				DMA_FROM_DEVICE,
 				wd_page_ring->wd_work[i].os_rsvd[0]);
 			wd_page_ring->wd_work[i].vir_addr = NULL;
 			wd_page_ring->wd_work[i].cache = 0;
@@ -746,7 +757,7 @@ _phl_alloc_wd_work_ring(struct phl_info_t *phl_info,
 					(_dma *)&wd_work[i].phy_addr_h,
 					buf_len,
 					wd_work[i].cache,
-					PCI_DMA_TODEVICE,
+					DMA_TO_DEVICE,
 					&wd_work[i].os_rsvd[0]);
  		if (NULL == wd_work[i].vir_addr) {
 			psts = RTW_PHL_STATUS_RESOURCE;
@@ -1217,7 +1228,8 @@ static void phl_tx_reset_pcie(struct phl_info_t *phl_info)
 
 
 #ifdef CONFIG_DYNAMIC_RX_BUF
-void _phl_alloc_dynamic_rxbuf_pcie(struct rtw_rx_buf *rx_buf,
+enum rtw_phl_status
+_phl_alloc_dynamic_rxbuf_pcie(struct rtw_rx_buf *rx_buf,
 					struct phl_info_t *phl_info)
 {
 	enum rtw_phl_status sts = RTW_PHL_STATUS_FAILURE;
@@ -1231,7 +1243,8 @@ void _phl_alloc_dynamic_rxbuf_pcie(struct rtw_rx_buf *rx_buf,
 				(_dma *)&rx_buf->phy_addr_h,
 				RX_BUF_SIZE + PHL_RX_HEADROOM,
 				rx_buf->os_priv);
-		return;
+		return RTW_PHL_STATUS_SUCCESS;
+
 	}
 
 	if (rx_buf != NULL) {
@@ -1257,8 +1270,67 @@ void _phl_alloc_dynamic_rxbuf_pcie(struct rtw_rx_buf *rx_buf,
 			sts = RTW_PHL_STATUS_SUCCESS;
 		}
 	}
+
+	return sts;
 }
-#endif
+
+static void enqueue_empty_rx_buf(
+				struct phl_info_t *phl_info,
+				struct rtw_rx_buf_ring *rx_buf_ring,
+				struct rtw_rx_buf *rx_buf)
+{
+	_os_list *list = &rx_buf_ring->empty_rxbuf_list;
+
+	_os_spinlock(phl_to_drvpriv(phl_info),
+			&rx_buf_ring->empty_rxbuf_lock, _bh, NULL);
+	list_add_tail(&rx_buf->list, list);
+	rx_buf_ring->empty_rxbuf_cnt++;
+	_os_spinunlock(phl_to_drvpriv(phl_info),
+			&rx_buf_ring->empty_rxbuf_lock, _bh, NULL);
+}
+
+static struct rtw_rx_buf *query_empty_rx_buf(struct phl_info_t *phl_info,
+				struct rtw_rx_buf_ring *rx_buf_ring)
+{
+	_os_list *rxbuf_list = &rx_buf_ring->empty_rxbuf_list;
+	struct rtw_rx_buf *rx_buf = NULL;
+
+	_os_spinlock(phl_to_drvpriv(phl_info),
+			&rx_buf_ring->empty_rxbuf_lock, _bh, NULL);
+	if (!list_empty(rxbuf_list)) {
+		rx_buf = list_first_entry(rxbuf_list, struct rtw_rx_buf, list);
+		rx_buf_ring->empty_rxbuf_cnt--;
+		list_del(&rx_buf->list);
+	}
+	_os_spinunlock(phl_to_drvpriv(phl_info),
+			&rx_buf_ring->empty_rxbuf_lock, _bh, NULL);
+
+	return rx_buf;
+}
+
+static enum rtw_phl_status enqueue_idle_rx_buf(
+				struct phl_info_t *phl_info,
+				struct rtw_rx_buf_ring *rx_buf_ring,
+				struct rtw_rx_buf *rx_buf);
+
+static void refill_empty_rx_buf(
+				struct phl_info_t *phl_info,
+				struct rtw_rx_buf_ring *rx_buf_ring)
+{
+	enum rtw_phl_status pstatus;
+	struct rtw_rx_buf *rx_buf = NULL;
+
+	while (rx_buf_ring->empty_rxbuf_cnt) {
+		rx_buf = query_empty_rx_buf(phl_info, rx_buf_ring);
+		pstatus = _phl_alloc_dynamic_rxbuf_pcie(rx_buf, phl_info);
+		if (RTW_PHL_STATUS_SUCCESS != pstatus) {
+			enqueue_empty_rx_buf(phl_info, rx_buf_ring, rx_buf);
+			break;
+		}
+		enqueue_idle_rx_buf(phl_info, rx_buf_ring, rx_buf);
+	}
+}
+#endif /* CONFIG_DYNAMIC_RX_BUF */
 
 
 static enum rtw_phl_status enqueue_busy_rx_buf(
@@ -1366,11 +1438,17 @@ phl_release_target_rx_buf(struct phl_info_t *phl_info, void *r, u8 ch,
 
 	rx_buf_ring = (struct rtw_rx_buf_ring *)hci_info->rxbuf_pool;
 
+	if (rx_buf) {
 #ifdef CONFIG_DYNAMIC_RX_BUF
-	if(rx_buf && (type == RTW_RX_TYPE_WIFI))
-		_phl_alloc_dynamic_rxbuf_pcie(rx_buf, phl_info);
+		if (type == RTW_RX_TYPE_WIFI)
+			_phl_alloc_dynamic_rxbuf_pcie(rx_buf, phl_info);
+		if (NULL == rx_buf->vir_addr) {
+			enqueue_empty_rx_buf(phl_info, &rx_buf_ring[ch], rx_buf);
+#ifdef DEBUG_PHL_RX
+			phl_info->rx_stats.rxbuf_empty++;
 #endif
-	if (&rx_buf_ring[ch] != NULL && rx_buf != NULL) {
+		} else
+#endif
 		enqueue_idle_rx_buf(phl_info, &rx_buf_ring[ch], rx_buf);
 		pstatus = RTW_PHL_STATUS_SUCCESS;
 	}
@@ -1410,7 +1488,7 @@ static enum rtw_phl_status phl_release_busy_rx_buf(
 /* 	struct pci_dev *pdev = dvobj->ppcidev; */
 
 /* 	FUNCIN(); */
-/* 	ops->free_cache_mem(pdev,vir_addr, bus_addr, size, PCI_DMA_TODEVICE); */
+/* 	ops->free_cache_mem(pdev,vir_addr, bus_addr, size, DMA_TO_DEVICE); */
 
 /* 	/\* NONCACHE hana_todo */
 /* 	 * ops->alloc_noncache_mem(pdev, vir_addr, bus_addr, size); */
@@ -1458,6 +1536,9 @@ static void _phl_free_rxbuf_pool_pcie(struct phl_info_t *phl_info,
 		for (i = 0; i < ch_num; i++) {
 
 			ring[i].idle_rxbuf_cnt = 0;
+#ifdef CONFIG_DYNAMIC_RX_BUF
+			ring[i].empty_rxbuf_cnt = 0;
+#endif
 
 			if (NULL == ring[i].rx_buf)
 				continue;
@@ -1468,6 +1549,10 @@ static void _phl_free_rxbuf_pool_pcie(struct phl_info_t *phl_info,
 					&ring->idle_rxbuf_lock);
 			_os_spinlock_free(phl_to_drvpriv(phl_info),
 					&ring->busy_rxbuf_lock);
+#ifdef CONFIG_DYNAMIC_RX_BUF
+			_os_spinlock_free(phl_to_drvpriv(phl_info),
+					&ring->empty_rxbuf_lock);
+#endif
 		}
 		_os_mem_free(phl_to_drvpriv(phl_info), ring,
 					sizeof(struct rtw_rx_buf_ring) * ch_num);
@@ -1492,7 +1577,7 @@ static void _phl_destory_dma_pool_pcie(struct phl_info_t *phl_info, struct dma_p
 /* 	void *vir_addr = NULL; */
 
 /* 	FUNCIN(); */
-/* 	vir_addr = ops->alloc_cache_mem(pdev, bus_addr, size, PCI_DMA_TODEVICE); */
+/* 	vir_addr = ops->alloc_cache_mem(pdev, bus_addr, size, DMA_TO_DEVICE); */
 
 /* 	/\* NONCACHE hana_todo */
 /* 	 * vir_addr = ops->alloc_noncache_mem(pdev, bus_addr, size); */
@@ -1584,6 +1669,11 @@ _phl_alloc_rxbuf_pool_pcie(struct phl_info_t *phl_info, u8 ch_num)
 					&rx_buf_ring[i].busy_rxbuf_lock);
 			INIT_LIST_HEAD(&rx_buf_ring[i].idle_rxbuf_list);
 			INIT_LIST_HEAD(&rx_buf_ring[i].busy_rxbuf_list);
+#ifdef CONFIG_DYNAMIC_RX_BUF
+			_os_spinlock_init(phl_to_drvpriv(phl_info),
+					&rx_buf_ring[i].empty_rxbuf_lock);
+			INIT_LIST_HEAD(&rx_buf_ring[i].empty_rxbuf_list);
+#endif
 			rx_buf = _phl_alloc_rxbuf_pcie(phl_info,
 							&rx_buf_ring[i]);
 			if (NULL == rx_buf) {
@@ -1617,7 +1707,7 @@ _phl_alloc_rxbuf_pool_pcie(struct phl_info_t *phl_info, u8 ch_num)
 /* 	struct pci_dev *pdev = dvobj->ppcidev; */
 
 /* 	FUNCIN(); */
-/* 	ops->free_cache_mem(pdev,vir_addr, bus_addr, size, PCI_DMA_TODEVICE); */
+/* 	ops->free_cache_mem(pdev,vir_addr, bus_addr, size, DMA_TO_DEVICE); */
 
 /* 	/\* NONCACHE hana_todo */
 /* 	 * ops->alloc_noncache_mem(pdev, vir_addr, bus_addr, size); */
@@ -1644,7 +1734,7 @@ static void _phl_free_wd_page_pcie(struct phl_info_t *phl_info,
 						(_dma *)&wd_page[i].phy_addr_h,
 						wd_page[i].buf_len,
 						wd_page[i].cache,
-						PCI_DMA_FROMDEVICE,
+						DMA_FROM_DEVICE,
 						wd_page[i].os_rsvd[0]);
 			wd_page[i].vir_addr = NULL;
 			wd_page[i].cache = 0;
@@ -1706,7 +1796,7 @@ static void _phl_free_wd_ring_pcie(struct phl_info_t *phl_info, u8 *wd_page_buf,
 /* 	void *vir_addr = NULL; */
 
 /* 	FUNCIN(); */
-/* 	vir_addr = ops->alloc_cache_mem(pdev, bus_addr, size, PCI_DMA_TODEVICE); */
+/* 	vir_addr = ops->alloc_cache_mem(pdev, bus_addr, size, DMA_TO_DEVICE); */
 
 /* 	/\* NONCACHE hana_todo */
 /* 	 * vir_addr = ops->alloc_noncache_mem(pdev, bus_addr, size); */
@@ -1742,7 +1832,7 @@ static struct rtw_wd_page *_phl_alloc_wd_page_pcie(
 						(_dma *)&wd_page[i].phy_addr_h,
 						buf_len,
 						wd_page[i].cache,
-						PCI_DMA_TODEVICE,
+						DMA_TO_DEVICE,
 						&wd_page[i].os_rsvd[0]);
 			if (NULL == wd_page[i].vir_addr) {
 				pstatus = RTW_PHL_STATUS_RESOURCE;
@@ -1850,7 +1940,7 @@ static void _phl_free_h2c_pkt_buf_pcie(struct phl_info_t *phl_info,
 				(_dma *)&h2c_pkt->phy_addr_h,
 				h2c_pkt->buf_len,
 				h2c_pkt->cache,
-				PCI_DMA_FROMDEVICE,
+				DMA_FROM_DEVICE,
 				h2c_pkt->os_rsvd[0]);
 }
 
@@ -1866,7 +1956,7 @@ enum rtw_phl_status _phl_alloc_h2c_pkt_buf_pcie(struct phl_info_t *phl_info,
 				(_dma *)&h2c_pkt->phy_addr_h,
 				buf_len,
 				h2c_pkt->cache,
-				PCI_DMA_TODEVICE,
+				DMA_TO_DEVICE,
 				&h2c_pkt->os_rsvd[0]);
 
 	if (h2c_pkt->vir_head)
@@ -1894,7 +1984,7 @@ static void _phl_free_rxbd_pcie(struct phl_info_t *phl_info,
 						(_dma *)&rxbd[i].phy_addr_h,
 						rxbd[i].buf_len,
 						rxbd[i].cache,
-						PCI_DMA_FROMDEVICE,
+						DMA_FROM_DEVICE,
 						rxbd[i].os_rsvd[0]);
 			rxbd[i].vir_addr = NULL;
 			rxbd[i].cache = 0;
@@ -1931,7 +2021,7 @@ _phl_alloc_rxbd_pcie(struct phl_info_t *phl_info, u8 ch_num)
 						(_dma *)&rxbd[i].phy_addr_h,
 						buf_len,
 						rxbd[i].cache,
-						PCI_DMA_TODEVICE,
+						DMA_TO_DEVICE,
 						&rxbd[i].os_rsvd[0]);
 			if (NULL == rxbd[i].vir_addr) {
 				pstatus = RTW_PHL_STATUS_RESOURCE;
@@ -1972,7 +2062,7 @@ static void _phl_free_txbd_pcie(struct phl_info_t *phl_info, u8 *txbd_buf,
 						(_dma *)&txbd[i].phy_addr_h,
 						txbd[i].buf_len,
 						txbd[i].cache,
-						PCI_DMA_FROMDEVICE,
+						DMA_FROM_DEVICE,
 						txbd[i].os_rsvd[0]);
 			txbd[i].vir_addr = NULL;
 			txbd[i].cache = 0;
@@ -2013,7 +2103,7 @@ _phl_alloc_txbd_pcie(struct phl_info_t *phl_info, u8 ch_num)
 						(_dma *)&txbd[i].phy_addr_h,
 						buf_len,
 						txbd[i].cache,
-						PCI_DMA_TODEVICE,
+						DMA_TO_DEVICE,
 						&txbd[i].os_rsvd[0]);
 			if (NULL == txbd[i].vir_addr) {
 				pstatus = RTW_PHL_STATUS_RESOURCE;
@@ -2681,8 +2771,10 @@ phl_prepare_tx_pcie(struct phl_info_t *phl_info, struct rtw_xmit_req *tx_req)
 				wd_ring[dma_ch].idle_wd_page_cnt,
 				wd_ring[dma_ch].busy_wd_page_cnt,
 				wd_ring[dma_ch].pending_wd_page_cnt);
+#if 0
 			if (wd_ring[dma_ch].busy_wd_page_cnt > MAX_WD_PAGE_NUM * 4 / 5)
 				rtw_hal_tx_dbg_status_dump(phl_info->hal);
+#endif
 			break;
 		}
 		/* hana_todo */
@@ -2739,7 +2831,7 @@ phl_prepare_tx_pcie(struct phl_info_t *phl_info, struct rtw_xmit_req *tx_req)
 				_os_cache_wback(phl_to_drvpriv(phl_info),
 					(_dma *)&wd_page->phy_addr_l,
 					(_dma *)&wd_page->phy_addr_h,
-					wd_page->buf_len, PCI_DMA_TODEVICE);
+					wd_page->buf_len, DMA_TO_DEVICE);
 			}
 
 #ifdef CONFIG_PHL_TXSC
@@ -3119,12 +3211,17 @@ enum rtw_phl_status phl_get_single_rx(struct phl_info_t *phl_info,
 			(_dma *)&rxbuf->phy_addr_l,
 			(_dma *)&rxbuf->phy_addr_h,
 			hal_spec->rx_bd_info_sz,
-			PCI_DMA_FROMDEVICE);
+			DMA_FROM_DEVICE);
 		}
 		if (true != rtw_hal_check_rxrdy(phl_info->phl_com,
 						phl_info->hal,
 						rxbuf->vir_addr,
 						ch)) {
+			PHL_TRACE(COMP_PHL_DBG, _PHL_INFO_, "RX:%s(%d) packet not ready\n",
+					__func__, __LINE__);
+#ifdef DEBUG_PHL_RX
+			phl_info->rx_stats.rx_rdy_fail++;
+#endif
 			PHL_TRACE(COMP_PHL_DBG, _PHL_INFO_, "RX:%s(%d) packet not ready\n",
 					__func__, __LINE__);
 				pstatus = RTW_PHL_STATUS_FAILURE;
@@ -3137,8 +3234,12 @@ enum rtw_phl_status phl_get_single_rx(struct phl_info_t *phl_info,
 
 		if (true != rtw_hal_handle_rxbd_info(phl_info->hal,
 								rxbuf->vir_addr,
-								&buf_size))
+								&buf_size)) {
+#ifdef DEBUG_PHL_RX
+			phl_info->rx_stats.rxbd_fail++;
+#endif
 			goto drop;
+		}
 
 #ifdef CONFIG_DYNAMIC_RX_BUF
 		phl_rx->r.os_priv = rxbuf->os_priv;
@@ -3150,7 +3251,7 @@ enum rtw_phl_status phl_get_single_rx(struct phl_info_t *phl_info,
 			(_dma *)&rxbuf->phy_addr_l,
 			(_dma *)&rxbuf->phy_addr_h,
 				buf_size,
-			PCI_DMA_FROMDEVICE);
+			DMA_FROM_DEVICE);
 		}
 
 		rxbuf->hw_write_size = buf_size;
@@ -3182,6 +3283,9 @@ enum rtw_phl_status phl_get_single_rx(struct phl_info_t *phl_info,
 	return pstatus;
 
 drop:
+#ifdef DEBUG_PHL_RX
+	phl_info->rx_stats.rx_drop_get++;
+#endif
 #ifdef CONFIG_DYNAMIC_RX_BUF
 	/* avoid re-allocating buffer carried on rxbuf */
 	phl_rx->type = RTW_RX_TYPE_MAX;
@@ -3501,8 +3605,19 @@ void _phl_rx_handle_wp_report(struct phl_info_t *phl_info,
 static void phl_rx_process_pcie(struct phl_info_t *phl_info,
 							struct rtw_phl_rx_pkt *phl_rx)
 {
+#ifdef DEBUG_PHL_RX
+	phl_info->rx_stats.rx_type_all++;
+#endif
+
 	switch (phl_rx->type) {
 	case RTW_RX_TYPE_WIFI:
+#ifdef DEBUG_PHL_RX
+		phl_info->rx_stats.rx_type_wifi++;
+		if (phl_rx->r.pkt_list[0].length == phl_info->cnt_rx_pktsz)
+			phl_info->rx_stats.rx_pktsz_phl++;
+		if (phl_rx->r.mdata.amsdu)
+			phl_info->rx_stats.rx_amsdu++;
+#endif
 #ifdef CONFIG_PHL_RX_PSTS_PER_PKT
 		if (false == phl_rx_proc_wait_phy_sts(phl_info, phl_rx)) {
 			PHL_TRACE(COMP_PHL_PSTS, _PHL_DEBUG_,
@@ -3514,10 +3629,16 @@ static void phl_rx_process_pcie(struct phl_info_t *phl_info,
 #endif
 		break;
 	case RTW_RX_TYPE_TX_WP_RELEASE_HOST:
+#ifdef DEBUG_PHL_RX
+		phl_info->rx_stats.rx_type_wp++;
+#endif
 		_phl_rx_handle_wp_report(phl_info, phl_rx);
 		phl_recycle_rx_buf(phl_info, phl_rx);
 		break;
 	case RTW_RX_TYPE_PPDU_STATUS:
+#ifdef DEBUG_PHL_RX
+		phl_info->rx_stats.rx_type_ppdu++;
+#endif
 		phl_rx_proc_ppdu_sts(phl_info, phl_rx);
 #ifdef CONFIG_PHL_RX_PSTS_PER_PKT
 		phl_rx_proc_phy_sts(phl_info, phl_rx);
@@ -3525,6 +3646,9 @@ static void phl_rx_process_pcie(struct phl_info_t *phl_info,
 		phl_recycle_rx_buf(phl_info, phl_rx);
 		break;
 	case RTW_RX_TYPE_C2H:
+#ifdef DEBUG_PHL_RX
+		phl_info->rx_stats.rx_type_c2h++;
+#endif
 		phl_recycle_rx_buf(phl_info, phl_rx);
 		break;
 	case RTW_RX_TYPE_CHANNEL_INFO:
@@ -3561,8 +3685,17 @@ static enum rtw_phl_status phl_rx_pcie(struct phl_info_t *phl_info)
 
 	FUNCIN_WSTS(pstatus);
 
+#ifdef DEBUG_PHL_RX
+	phl_info->rx_stats.phl_rx++;
+#endif
+
 	rx_buf_ring = (struct rtw_rx_buf_ring *)hci_info->rxbuf_pool;
 	rxbd = (struct rx_base_desc *)hci_info->rxbd_buf;
+
+#ifdef CONFIG_DYNAMIC_RX_BUF
+	/* The empty rxbuf (w/o available buffer) happen only on RTW_RX_TYPE_WIFI */
+	refill_empty_rx_buf(phl_info, &rx_buf_ring[0]);
+#endif
 
 	for (ch = 0; ch < hci_info->total_rxch_num; ch++) {
 		rxcnt = phl_calc_avail_rptr(rxbd[ch].host_idx, rxbd[ch].hw_idx,

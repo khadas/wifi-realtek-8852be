@@ -15,6 +15,9 @@
 #define _RTW_RECV_C_
 
 #include <drv_types.h>
+#ifdef CONFIG_RTW_NEON_MODE
+#include <asm/neon.h>
+#endif
 
 static void rtw_signal_stat_timer_hdl(void *ctx);
 
@@ -2268,6 +2271,45 @@ static inline void dump_rx_packet(u8 *ptr)
 	RTW_INFO("#############################\n");
 }
 
+#ifdef CONFIG_SNR_RPT
+static void rx_process_snr_info(union recv_frame *precvframe)
+{
+	_adapter *padapter = precvframe->u.hdr.adapter;
+	struct rx_pkt_attrib *pattrib = &precvframe->u.hdr.attrib;
+	struct phydm_phyinfo_struct *phy_info = &pattrib->phy_info;
+	u8 *wlanhdr = NULL;
+	u8 *ta, *ra;
+	u8 is_ra_bmc;
+	struct sta_priv *pstapriv;
+	struct sta_info *psta = NULL;
+	int i;
+
+	wlanhdr = precvframe->u.hdr.rx_data;
+	ta = get_ta(wlanhdr);
+	pstapriv = &padapter->stapriv;
+	psta = rtw_get_stainfo(pstapriv, ta);
+
+	if (psta) {
+		_rtw_spinlock_bh(&psta->lock);
+		if (phy_info->is_valid) {
+			psta->snr_num++;
+			for ( i = 0; i < RTW_PHL_MAX_RF_PATH; i++) {
+				psta->snr_fd_total[i] += pattrib->phy_info.snr_fd[i];
+				psta->snr_td_total[i] += pattrib->phy_info.snr_td[i];
+				psta->snr_fd_avg[i] = psta->snr_fd_total[i]/psta->snr_num;
+				psta->snr_td_avg[i] = psta->snr_td_total[i]/psta->snr_num;
+				#if 0
+				RTW_INFO("path = %d, AVG_SNR_FD = %d, AVG_SNR_TD = %d\n",
+				i, psta->snr_fd_avg[i], psta->snr_td_avg[i]);
+				#endif
+			}
+
+		}
+		_rtw_spinunlock_bh(&psta->lock);
+	}
+
+}
+#endif /* CONFIG_SNR_RPT */
 sint validate_recv_frame(_adapter *adapter, union recv_frame *precv_frame)
 {
 	/* shall check frame subtype, to / from ds, da, bssid */
@@ -2379,6 +2421,9 @@ sint validate_recv_frame(_adapter *adapter, union recv_frame *precv_frame)
 	rx_process_phy_info(precv_frame);
 #endif
 
+#ifdef CONFIG_SNR_RPT
+	rx_process_snr_info(precv_frame);
+#endif /* CONFIG_SNR_RPT */
 	switch (type) {
 	case WIFI_MGT_TYPE: /* mgnt */
 		DBG_COUNTER(adapter->rx_logs.core_rx_pre_mgmt);
@@ -4866,7 +4911,11 @@ static int core_alloc_recvframe_pkt(union recv_frame *prframe,
 	/* For 8 bytes IP header alignment. */
 	if (phlrx->mdata.qos)
 		/* Qos data, wireless lan header length is 26 */
+#ifdef CONFIG_RTW_RX_SKB_DATA_ALIGNMENT
+		shift_sz = 8;
+#else
 		shift_sz = 6;
+#endif
 	else
 		shift_sz = 0;
 
@@ -4882,13 +4931,22 @@ static int core_alloc_recvframe_pkt(union recv_frame *prframe,
 		if (alloc_sz <= 1650)
 			alloc_sz = 1664;
 		else
+#ifdef CONFIG_RTW_RX_SKB_DATA_ALIGNMENT
+			alloc_sz += 16;
+#else
 			alloc_sz += 14;
+#endif
 	} else {
 		/*
 		 * 6 is for IP header 8 bytes alignment in QoS packet case.
 		 * 8 is for skb->data 4 bytes alignment.
 		 */
-		alloc_sz += 14;
+
+#ifdef CONFIG_RTW_RX_SKB_DATA_ALIGNMENT
+			alloc_sz += 16;
+#else
+			alloc_sz += 14;
+#endif
 	}
 
 	pkt = rtw_skb_alloc(alloc_sz);
@@ -4904,8 +4962,13 @@ static int core_alloc_recvframe_pkt(union recv_frame *prframe,
 	/* force ip_hdr at 8-byte alignment address according to shift_sz. */
 	skb_reserve(pkt, shift_sz);
 	pbuf = skb_put(pkt, pktbuf->length);
+#ifdef CONFIG_RTW_NEON_MODE
+	kernel_neon_begin();
+	_rtw_neon_memcpy(pbuf, pktbuf->vir_addr, pktbuf->length);
+	kernel_neon_end();
+#else
 	_rtw_memcpy(pbuf, pktbuf->vir_addr, pktbuf->length);
-
+#endif
 	prframe->u.hdr.pkt = pkt;
 	prframe->u.hdr.rx_data = pkt->data;
 	prframe->u.hdr.rx_tail = skb_tail_pointer(pkt);
@@ -5117,6 +5180,7 @@ void core_update_recvframe_phyinfo(union recv_frame *prframe, struct rtw_recv_pk
 	struct rx_pkt_attrib *attrib = &prframe->u.hdr.attrib;
 	struct rtw_phl_ppdu_phy_info *phy_info = &rx_req->phy_info;
 	u8 ptype, pstype;
+	int i;
 
 	_rtw_memset(&attrib->phy_info, 0, sizeof(struct phydm_phyinfo_struct));
 
@@ -5146,6 +5210,13 @@ void core_update_recvframe_phyinfo(union recv_frame *prframe, struct rtw_recv_pk
 		attrib->phy_info.signal_quality = phy_info->rssi;
 		attrib->phy_info.recv_signal_power = rtw_phl_rssi_to_dbm(phy_info->rssi);
 		attrib->ch = phy_info->ch_idx;
+		/* snr info */
+		attrib->phy_info.snr_fd_avg = phy_info->snr_fd_avg;
+		attrib->phy_info.snr_td_avg = phy_info->snr_td_avg;
+		for ( i = 0; i < RTW_PHL_MAX_RF_PATH; i++) {
+			attrib->phy_info.snr_fd[i] = phy_info->snr_fd[i];
+			attrib->phy_info.snr_td[i] = phy_info->snr_td[i];
+		}
 
 		#ifdef DBG_PHY_INFO
 		RTW_INFO("[PHY-INFO] ft:0x%02x-0x%02x rssi:%d, ch_idx:%d, tx_bf:%d\n",

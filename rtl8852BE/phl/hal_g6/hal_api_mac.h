@@ -681,4 +681,9 @@ rtw_hal_mac_set_tx_duty(struct hal_info_t *hal_info,
 
 enum rtw_hal_status
 rtw_hal_mac_stop_tx_duty(struct hal_info_t *hal_info);
+
+#ifdef CONFIG_PHL_CSUM_OFFLOAD_RX
+void rtw_hal_mac_parse_rxd_checksume(struct rtw_hal_com_t *hal,
+					struct rtw_r_meta_data *meta, u8 status);
+#endif
 #endif /*_HAL_API_MAC_H_*/

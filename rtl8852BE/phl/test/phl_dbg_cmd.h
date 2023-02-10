@@ -43,6 +43,9 @@ enum PHL_DBG_CMD_ID {
 	PHL_DBG_DUMP_WROLE,
 	PHL_DBG_SET_CH_BW,
 	PHL_DBG_SHOW_RX_RATE,
+#ifdef DEBUG_PHL_RX
+	PHL_DBG_PHL_RX,
+#endif
 	PHL_DBG_ASOC_STA,
 	PHL_DBG_SOUND,
 	#ifdef CONFIG_FSM
@@ -68,6 +71,9 @@ static const struct phl_dbg_cmd_info phl_dbg_cmd_i[] = {
 	{"role", PHL_DBG_DUMP_WROLE},
 	{"set_ch", PHL_DBG_SET_CH_BW},
 	{"rxrate", PHL_DBG_SHOW_RX_RATE},
+#ifdef DEBUG_PHL_RX
+	{"phl_rx", PHL_DBG_PHL_RX},
+#endif
 	{"asoc_sta", PHL_DBG_ASOC_STA},
 	{"sound", PHL_DBG_SOUND},
 	#ifdef CONFIG_FSM

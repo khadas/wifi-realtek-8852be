@@ -114,6 +114,10 @@ struct phydm_phyinfo_struct {
 	s8 rx_pwr[4];		/* per-path's pwdb */
 	s8 rx_snr[4];		/* per-path's SNR	*/
 	u8 rx_count:2;		/* RX path counter---*/
+	u8 snr_fd_avg;
+	u8 snr_fd[4];
+	u8 snr_td_avg;
+	u8 snr_td[4];
 };
 
 

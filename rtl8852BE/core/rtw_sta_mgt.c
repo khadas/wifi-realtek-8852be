@@ -702,7 +702,7 @@ u32 rtw_alloc_stainfo_hw(struct	sta_priv *stapriv, struct sta_info *psta)
 }
 
 /* using pstapriv->sta_hash_lock to protect */
-u32 static _rtw_free_core_stainfo(_adapter *padapter , struct sta_info *psta)
+u32 static _rtw_free_core_stainfo(_adapter *padapter , struct sta_info *psta, u8 aid, const u8 *hwaddr)
 {
 	int i;
 	_queue *pfree_sta_queue;
@@ -731,10 +731,11 @@ u32 static _rtw_free_core_stainfo(_adapter *padapter , struct sta_info *psta)
 #endif
 
 #ifdef CONFIG_RTW_80211K
-	rm_post_event(padapter, RM_ID_FOR_ALL(psta->phl_sta->aid), RM_EV_cancel);
+	if (aid)
+		rm_post_event(padapter, RM_ID_FOR_ALL(aid), RM_EV_cancel);
 #endif
 	#if CONFIG_RTW_PRE_LINK_STA
-	is_pre_link_sta = rtw_is_pre_link_sta(pstapriv, psta->phl_sta->mac_addr);
+	is_pre_link_sta = rtw_is_pre_link_sta(pstapriv, hwaddr);
 
 	if (is_pre_link_sta == _FALSE) {
 		_rtw_spinlock_bh(&(pstapriv->sta_hash_lock));
@@ -916,15 +917,16 @@ u32 static _rtw_free_core_stainfo(_adapter *padapter , struct sta_info *psta)
 
 #ifdef CONFIG_NATIVEAP_MLME
 
-	if (pmlmeinfo->state == _HW_STATE_AP_) {
-		rtw_tim_map_clear(padapter, pstapriv->sta_dz_bitmap, psta->phl_sta->aid);
-		rtw_tim_map_clear(padapter, pstapriv->tim_bitmap, psta->phl_sta->aid);
+	if (aid && pmlmeinfo->state == _HW_STATE_AP_) {
+		rtw_tim_map_clear(padapter, pstapriv->sta_dz_bitmap, aid);
+		rtw_tim_map_clear(padapter, pstapriv->tim_bitmap, aid);
 
 		/* rtw_indicate_sta_disassoc_event(padapter, psta); */
 
-		if ((psta->phl_sta->aid > 0) && (pstapriv->sta_aid[psta->phl_sta->aid - 1] == psta)) {
-			pstapriv->sta_aid[psta->phl_sta->aid - 1] = NULL;
-			psta->phl_sta->aid = 0;
+		if (pstapriv->sta_aid[aid - 1] == psta) {
+			pstapriv->sta_aid[aid - 1] = NULL;
+			if (psta->phl_sta)
+				psta->phl_sta->aid = 0;
 		}
 	}
 
@@ -1003,7 +1005,7 @@ struct sta_info *rtw_alloc_stainfo_sw(struct	sta_priv *stapriv, const u8 *hwaddr
 				"for " MAC_FMT " !\n",
 				FUNC_ADPT_ARG(stapriv->padapter),
 				MAC_ARG(hwaddr));
-			_rtw_free_core_stainfo(stapriv->padapter, sta);
+			_rtw_free_core_stainfo(stapriv->padapter, sta, 0, hwaddr);
 			sta = NULL;
 		}
 	}
@@ -1013,14 +1015,18 @@ struct sta_info *rtw_alloc_stainfo_sw(struct	sta_priv *stapriv, const u8 *hwaddr
 
 u32	rtw_free_stainfo(_adapter *padapter, struct sta_info *psta)
 {
-	_rtw_free_core_stainfo(padapter, psta);
+	u16 aid = psta->phl_sta->aid;
+
+	_rtw_free_core_stainfo(padapter, psta, aid, psta->phl_sta->mac_addr);
 	_rtw_free_phl_stainfo(padapter, psta, _FALSE);
 	return _SUCCESS;
 }
 
 u32	rtw_free_stainfo_sw(_adapter *padapter, struct sta_info *psta)
 {
-	_rtw_free_core_stainfo(padapter, psta);
+	u16 aid = psta->phl_sta->aid;
+
+	_rtw_free_core_stainfo(padapter, psta, aid, psta->phl_sta->mac_addr);
 	_rtw_free_phl_stainfo(padapter, psta, _TRUE);
 	return _SUCCESS;
 }
@@ -1145,7 +1151,7 @@ struct sta_info *rtw_get_stainfo(struct sta_priv *pstapriv, const u8 *hwaddr)
 
 		if (psta->phl_sta == NULL) {
 			psta = NULL;
-			RTW_ERR("phl_sta of sta is NULL\n");
+			RTW_DBG("phl_sta of sta is NULL\n");
 			plist = get_next(plist);
 			continue;
 		}
@@ -1173,11 +1179,13 @@ u32	rtw_free_self_stainfo(_adapter *adapter)
 {
 	struct sta_info *sta = NULL;
 	struct sta_priv *stapriv = &adapter->stapriv;
+	u16 aid = 0;
 
 	sta = rtw_get_stainfo(stapriv, adapter->phl_role->mac_addr);
 
 	if (sta != NULL) {
-		_rtw_free_core_stainfo(adapter, sta);
+		aid = sta->phl_sta->aid;
+		_rtw_free_core_stainfo(adapter, sta, aid, sta->phl_sta->mac_addr);
 		_rtw_free_phl_stainfo(adapter, sta, _FALSE);
 	}
 

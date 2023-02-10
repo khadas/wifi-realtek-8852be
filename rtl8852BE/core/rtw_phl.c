@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2019 - 2021 Realtek Corporation.
+ * Copyright(c) 2019 - 2022 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -1107,6 +1107,11 @@ u8 rtw_hw_iface_init(_adapter *adapter)
 	ps_allow = _TRUE;
 	rtw_phl_ps_set_rt_cap(GET_PHL_INFO(dvobj), HW_BAND_0, ps_allow, PS_RT_CORE_INIT);
 #endif
+#ifdef CONFIG_RTW_LPS_DEFAULT_OFF
+	/* Default LPS off, it can be turn on by proc cmd */
+	ps_allow = _FALSE;
+	rtw_phl_ps_set_rt_cap(GET_PHL_INFO(dvobj), HW_BAND_0, ps_allow, PS_RT_DEBUG);
+#endif
 
 	return rst;
 
@@ -1189,6 +1194,17 @@ u8 rtw_hw_iface_type_change(_adapter *adapter, u8 iface_type)
 	return _SUCCESS;
 }
 
+/*
+ * Terminate every phl(wifi) role related works before phl role gone.
+ */
+static void _phl_role_free_prepare(struct _ADAPTER *adapter)
+{
+#ifdef CONFIG_STA_CMD_DISPR
+	rtw_connect_abort_wait(adapter);
+	rtw_disconnect_abort_wait(adapter);
+#endif /* CONFIG_STA_CMD_DISPR */
+}
+
 void rtw_hw_iface_deinit(_adapter *adapter)
 {
 	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
@@ -1198,6 +1214,7 @@ void rtw_hw_iface_deinit(_adapter *adapter)
 	rtw_phl_ps_set_rt_cap(GET_PHL_INFO(dvobj), HW_BAND_0, ps_allow, PS_RT_CORE_INIT);
 #endif
 	if (adapter->phl_role) {
+		_phl_role_free_prepare(adapter);
 		rtw_free_self_stainfo(adapter);
 		rtw_phl_wifi_role_free(GET_PHL_INFO(dvobj), adapter->phl_role->id);
 		adapter->phl_role = NULL;
@@ -1961,7 +1978,11 @@ int rtw_hw_connected(struct _ADAPTER *a, struct sta_info *sta)
 #endif
 
 	rtw_join_done_chk_ch(a, 1);
-	rtw_phl_connected(phl, a->phl_role, sta->phl_sta);
+	status = rtw_phl_connected(phl, a->phl_role, sta->phl_sta);
+
+	if (status != RTW_PHL_STATUS_SUCCESS)
+			return -1;
+
 #ifdef CONFIG_80211AX_HE
 	rtw_he_init_om_info(a);
 #endif
@@ -2807,43 +2828,69 @@ exit:
 		rtw_phl_set_edcca_mode(phl, phl_mode);
 }
 
-void rtw_dump_phl_tx_power_ext_info(void *sel, _adapter *adapter)
+bool rtw_txpwr_hal_get_pwr_lmt_en(struct dvobj_priv *dvobj)
 {
-	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
-	void *phl_info = GET_PHL_INFO(dvobj);
-	struct rtw_phl_com_t *phl_com = GET_PHL_COM(dvobj);
-	u8 band_idx;
-
-	if (!adapter->phl_role)
-		return;
-
-	band_idx = adapter->phl_role->hw_band;
-
-	RTW_PRINT_SEL(sel, "tx_power_by_rate: %s, %s, %s\n"
-		, phl_com->dev_cap.pwrbyrate_off == RTW_PW_BY_RATE_ON ? "enabled" : "disabled"
-		, phl_com->dev_cap.pwrbyrate_off == RTW_PW_BY_RATE_ON ? "loaded" : "unloaded"
-		, phl_com->phy_sw_cap[0].rf_txpwr_byrate_info.para_src == RTW_PARA_SRC_EXTNAL ? "file" : "default"
-	);
-
-	RTW_PRINT_SEL(sel, "tx_power_limit: %s, %s, %s\n"
-		, rtw_phl_get_pwr_lmt_en(phl_info, band_idx) ? "enabled" : "disabled"
-		, rtw_phl_get_pwr_lmt_en(phl_info, band_idx) ? "loaded" : "unloaded"
-		, phl_com->phy_sw_cap[0].rf_txpwrlmt_info.para_src == RTW_PARA_SRC_EXTNAL ? "file" : "default"
-	);
-
-	RTW_PRINT_SEL(sel, "tx_power_limit_ru: %s, %s, %s\n"
-		, rtw_phl_get_pwr_lmt_en(phl_info, band_idx) ? "enabled" : "disabled"
-		, rtw_phl_get_pwr_lmt_en(phl_info, band_idx) ? "loaded" : "unloaded"
-		, phl_com->phy_sw_cap[0].rf_txpwrlmt_ru_info.para_src == RTW_PARA_SRC_EXTNAL ? "file" : "default"
-	);
+	return rtw_phl_get_pwr_lmt_en(GET_PHL_INFO(dvobj), HW_BAND_0);
 }
 
-void rtw_update_phl_txpwr_level(_adapter *adapter)
+bool rtw_txpwr_hal_get_ext_info(struct dvobj_priv *dvobj, struct tx_power_ext_info *info)
 {
-	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
+	void *phl_info = GET_PHL_INFO(dvobj);
+	struct rtw_phl_com_t *phl_com = GET_PHL_COM(dvobj);
+	u8 band_idx = HW_BAND_0;
+	struct phy_sw_cap_t *sw_cap = &phl_com->phy_sw_cap[band_idx];
 
-	rtw_phl_set_tx_power(GET_PHL_INFO(dvobj), adapter->phl_role->hw_band);
-	rtw_rfctl_update_op_mode(adapter_to_rfctl(adapter), 0, 0);
+	if (!rtw_hw_is_init_completed(dvobj))
+		return false;
+
+	SET_TXPWR_PARAM_STATUS(&info->by_rate
+		, phl_com->dev_cap.pwrbyrate_off == RTW_PW_BY_RATE_ON
+		, phl_com->dev_cap.pwrbyrate_off == RTW_PW_BY_RATE_ON
+		, sw_cap->rf_txpwr_byrate_info.para_src == RTW_PARA_SRC_EXTNAL);
+
+	SET_TXPWR_PARAM_STATUS(&info->lmt
+		, rtw_phl_get_pwr_lmt_en(phl_info, band_idx)
+		, rtw_phl_get_pwr_lmt_en(phl_info, band_idx)
+		, sw_cap->rf_txpwrlmt_info.para_src == RTW_PARA_SRC_EXTNAL);
+
+#ifdef CONFIG_80211AX_HE
+	SET_TXPWR_PARAM_STATUS(&info->lmt_ru
+		, rtw_phl_get_pwr_lmt_en(phl_info, band_idx)
+		, rtw_phl_get_pwr_lmt_en(phl_info, band_idx)
+		, sw_cap->rf_txpwrlmt_ru_info.para_src == RTW_PARA_SRC_EXTNAL);
+#endif
+
+#if CONFIG_IEEE80211_BAND_6GHZ
+	SET_TXPWR_PARAM_STATUS(&info->lmt_6g
+		, rtw_phl_get_pwr_lmt_en(phl_info, band_idx)
+		, rtw_phl_get_pwr_lmt_en(phl_info, band_idx)
+		, sw_cap->rf_txpwrlmt_6g_info.para_src == RTW_PARA_SRC_EXTNAL);
+
+	SET_TXPWR_PARAM_STATUS(&info->lmt_ru_6g
+		, rtw_phl_get_pwr_lmt_en(phl_info, band_idx)
+		, rtw_phl_get_pwr_lmt_en(phl_info, band_idx)
+		, sw_cap->rf_txpwrlmt_ru_6g_info.para_src == RTW_PARA_SRC_EXTNAL);
+#endif
+
+	return true;
+}
+
+void rtw_txpwr_hal_update_pwr(struct dvobj_priv *dvobj, enum phl_band_idx band_idx)
+{
+	struct rf_ctl_t *rfctl = dvobj_to_rfctl(dvobj);
+	struct txpwr_ctl_param args;
+	int i;
+
+	txpwr_ctl_param_init(&args);
+	args.force_write_txpwr = true;
+	args.constraint_mb = rfctl->tpc_mode == TPC_MODE_MANUAL ? rfctl->tpc_manual_constraint : 0;
+
+	for (i = HW_BAND_0; i < HW_BAND_MAX; i++) {
+		if (band_idx < HW_BAND_MAX && band_idx != i)
+			continue;
+		args.band_idx = i;
+		rtw_phl_cmd_txpwr_ctl(GET_PHL_INFO(dvobj), &args, PHL_CMD_DIRECTLY, 0);
+	}
 }
 
 inline u8 get_phy_tx_nss(_adapter *adapter)

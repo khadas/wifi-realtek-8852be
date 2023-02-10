@@ -327,8 +327,20 @@ void rtw_hal_env_rpt(struct rtw_hal_com_t *hal_com, struct rtw_env_report *env_r
 {
 	enum phl_phy_idx p_idx = HW_PHY_0;
 
-	p_idx = rtw_hal_bb_band_to_phy_idx(hal_com, wrole->hw_band);
+	p_idx = rtw_hal_hw_band_to_phy_idx(wrole->hw_band);
 	rtw_hal_bb_env_rpt(hal_com, env_rpt, p_idx);
 }
 
+enum phl_phy_idx rtw_hal_hw_band_to_phy_idx(enum phl_band_idx band_idx)
+{
+	enum phl_phy_idx p_idx = HW_PHY_MAX;
+
+	if (band_idx == HW_BAND_0)
+		p_idx = HW_PHY_0;
+	else if (band_idx == HW_BAND_1)
+		p_idx = HW_PHY_1;
+	else
+		PHL_ERR("%s: error band_idx(%d)\n", __func__, band_idx);
+	return p_idx;
+}
 #endif /* _HAL_COM_I_C_ */

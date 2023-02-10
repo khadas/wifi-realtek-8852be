@@ -3780,10 +3780,14 @@ s32 check_amsdu(struct xmit_frame *pxmitframe)
 s32 check_amsdu_tx_support(_adapter *padapter)
 {
 	struct dvobj_priv *pdvobjpriv;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	int tx_amsdu;
 	int tx_amsdu_rate;
 	int current_tx_rate;
 	s32 ret = _FALSE;
+
+	if(pmlmeext->cur_wireless_mode < WLAN_MD_11N)
+		return _FALSE;
 
 	pdvobjpriv = adapter_to_dvobj(padapter);
 	tx_amsdu = padapter->tx_amsdu;
@@ -6491,7 +6495,7 @@ void core_recycle_txreq_phyaddr(_adapter *padapter, struct rtw_xmit_req *txreq)
 #endif
 		if (txreq->cache == VIRTUAL_ADDR) {
 			pci_unmap_bus_addr(pdev, &phy_addr,
-				pkt_list->length, PCI_DMA_TODEVICE);
+				pkt_list->length, DMA_TO_DEVICE);
 		} else {
 			pci_free_noncache_mem(pdev, pkt_list->vir_addr,
 				&phy_addr, pkt_list->length);
@@ -6518,7 +6522,7 @@ void fill_txreq_phyaddr(_adapter *padapter, struct xmit_frame *pxframe)
 
 		for (idx1 = 0; idx1 < txreq->pkt_cnt; idx1++) {
 			dma_addr_t phy_addr = 0;
-			pci_get_bus_addr(pdev, pkt_list->vir_addr, &phy_addr, pkt_list->length, PCI_DMA_TODEVICE);
+			pci_get_bus_addr(pdev, pkt_list->vir_addr, &phy_addr, pkt_list->length, DMA_TO_DEVICE);
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 			pkt_list->phy_addr_h =  phy_addr >> 32;
 #else

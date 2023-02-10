@@ -2933,12 +2933,59 @@ static int proc_get_tx_power_limit(struct seq_file *m, void *v)
 }
 #endif /* CONFIG_TXPWR_LIMIT */
 
+static int proc_get_tpc_settings(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *adapter = (_adapter *)rtw_netdev_priv(dev);
+
+	dump_txpwr_tpc_settings(m, adapter_to_dvobj(adapter));
+
+	return 0;
+}
+
+static ssize_t proc_set_tpc_settings(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *adapter = (_adapter *)rtw_netdev_priv(dev);
+	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
+	struct rf_ctl_t *rfctl = dvobj_to_rfctl(dvobj);
+
+	char tmp[32] = {0};
+	u8 mode;
+	u16 m_constraint;
+
+	if (count > sizeof(tmp)) {
+		rtw_warn_on(1);
+		return -EFAULT;
+	}
+
+	if (buffer && !copy_from_user(tmp, buffer, count)) {
+
+		int num = sscanf(tmp, "%hhu %hu", &mode, &m_constraint);
+
+		if (num < 1)
+			return count;
+
+		if (mode >= TPC_MODE_INVALID)
+			return count;
+
+		if (mode == TPC_MODE_MANUAL && num >= 2)
+			rfctl->tpc_manual_constraint = rtw_min(m_constraint, TPC_MANUAL_CONSTRAINT_MAX);
+		rfctl->tpc_mode = mode;
+
+		if (rtw_hw_is_init_completed(dvobj))
+			rtw_run_in_thread_cmd_wait(adapter, (void *)rtw_update_txpwr_level_all_hwband, dvobj, 2000);
+	}
+
+	return count;
+}
+
 static int proc_get_tx_power_ext_info(struct seq_file *m, void *v)
 {
 	struct net_device *dev = m->private;
 	_adapter *adapter = (_adapter *)rtw_netdev_priv(dev);
 
-	rtw_dump_phl_tx_power_ext_info(m, adapter);
+	dump_tx_power_ext_info(m, adapter_to_dvobj(adapter));
 
 	return 0;
 }
@@ -5183,6 +5230,7 @@ const struct rtw_proc_hdl adapter_proc_hdls[] = {
 #if CONFIG_TXPWR_LIMIT
 	RTW_PROC_HDL_SSEQ("tx_power_limit", proc_get_tx_power_limit, NULL),
 #endif
+	RTW_PROC_HDL_SSEQ("tpc_settings", proc_get_tpc_settings, proc_set_tpc_settings),
 	RTW_PROC_HDL_SSEQ("tx_power_ext_info", proc_get_tx_power_ext_info, proc_set_tx_power_ext_info),
 #ifdef GEORGIA_TODO_TX_PWR
 	RTW_PROC_HDL_SEQ("tx_power_idx", &seq_ops_tx_power_idx, NULL),
@@ -5351,6 +5399,8 @@ const struct rtw_proc_hdl adapter_proc_hdls[] = {
 #endif
 	RTW_PROC_HDL_SSEQ("disconnect_info", proc_get_disconnect_info,
 			  proc_set_disconnect_info),
+
+	RTW_PROC_HDL_SSEQ("vcs_registry", proc_get_vcs, proc_set_vcs),
 };
 
 const int adapter_proc_hdls_num = sizeof(adapter_proc_hdls) / sizeof(struct rtw_proc_hdl);
@@ -5440,35 +5490,6 @@ int proc_get_phy_adaptivity(struct seq_file *m, void *v)
 	rtw_hal_phy_adaptivity_parm_msg(m, padapter);
 
 	return 0;
-}
-
-ssize_t proc_set_phy_adaptivity(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
-{
-	struct net_device *dev = data;
-	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
-	char tmp[32];
-	u32 th_l2h_ini;
-	s8 th_edcca_hl_diff;
-
-	if (count < 1)
-		return -EFAULT;
-
-	if (count > sizeof(tmp)) {
-		rtw_warn_on(1);
-		return -EFAULT;
-	}
-
-	if (buffer && !copy_from_user(tmp, buffer, count)) {
-
-		int num = sscanf(tmp, "%x %hhd", &th_l2h_ini, &th_edcca_hl_diff);
-
-		if (num != 2)
-			return count;
-
-		rtw_hal_phy_adaptivity_parm_set(padapter, (s8)th_l2h_ini, th_edcca_hl_diff);
-	}
-
-	return count;
 }
 
 static char *phydm_msg = NULL;
@@ -5611,7 +5632,7 @@ err:
 * init/deinit when register/unregister net_device, along with rtw_adapter_proc
 */
 const struct rtw_proc_hdl odm_proc_hdls[] = {
-	RTW_PROC_HDL_SSEQ("adaptivity", proc_get_phy_adaptivity, proc_set_phy_adaptivity),
+	RTW_PROC_HDL_SSEQ("adaptivity", proc_get_phy_adaptivity, NULL),
 	RTW_PROC_HDL_SZSEQ("phl_cmd", proc_get_phl_cmd, proc_set_phl_cmd, PHYDM_MSG_LEN),
 };
 

@@ -363,7 +363,7 @@ void _phl_free_tx_pkt_pool(void *phl)
 						(_dma *)&tpkt->pkt.phy_addr_h,
 						MAX_TEST_PAYLOAD_SIZE,
 						false,
-						PCI_DMA_TODEVICE,
+						DMA_TO_DEVICE,
 						tpkt->os_rsvd[0]);
 			#else
 			_os_mem_free(drv_priv, tpkt->pkt.vir_addr,
@@ -422,7 +422,7 @@ enum rtw_phl_status _phl_alloc_tx_pkt_pool(void *phl, u32 tx_pkt_num,
 						  (_dma *)&tpkt[i].pkt.phy_addr_h,
 						  tx_pkt_size,
 						  false,
-						  PCI_DMA_TODEVICE,
+						  DMA_TO_DEVICE,
 						  &tpkt[i].os_rsvd[0]);
 			#else /*USB/SDIO*/
 			tpkt[i].pkt.vir_addr = _os_mem_alloc(drv_priv, tx_pkt_size);

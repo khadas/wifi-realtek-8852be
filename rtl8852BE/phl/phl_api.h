@@ -207,7 +207,7 @@ rtw_phl_cmd_del_key(void *phl,
 enum rtw_phl_status rtw_phl_msg_hub_register_recver(void* phl,
 		struct phl_msg_receiver* ctx, enum phl_msg_recver_layer layer);
 enum rtw_phl_status rtw_phl_msg_hub_update_recver_mask(void* phl,
-		enum phl_msg_recver_layer layer, u8* mdl_id, u32 len, u8 clr);
+		enum phl_msg_recver_layer layer, u8* mdl_id, u8 len, u8 clr);
 enum rtw_phl_status rtw_phl_msg_hub_deregister_recver(void* phl,
 					enum phl_msg_recver_layer layer);
 enum rtw_phl_status rtw_phl_msg_hub_send(void* phl,
@@ -674,6 +674,9 @@ rtw_phl_get_tx_retry_rpt(void *phl, struct rtw_phl_stainfo_t *phl_sta, u32 *tx_r
 enum rtw_rx_status rtw_phl_get_rx_status(void *phl);
 
 void rtw_phl_dbg_dump_rx(void *phl, struct rtw_wifi_role_t *wrole);
+#ifdef CONFIG_PCI_HCI
+u32 rtw_phl_get_hw_cnt_rdu(void *phl);
+#endif
 
 /******************************************************************************
  *
@@ -684,12 +687,26 @@ const char *rtw_phl_get_pw_lmt_regu_type_str(void *phl, enum band_type band);
 
 bool rtw_phl_get_pwr_lmt_en(void *phl, u8 band_idx);
 
-enum rtw_phl_status rtw_phl_set_tx_power(void *phl, u8 band_idx);
+enum rtw_phl_status rtw_phl_set_tx_power(void *phl, u8 band_idx); /* TODO: remove this */
+
+enum rtw_phl_status
+rtw_phl_cmd_txpwr_ctl(void *phl, struct txpwr_ctl_param *args
+	, enum phl_cmd_type cmd_type, u32 cmd_timeout);
+
+enum rtw_phl_status
+rtw_phl_cmd_set_tx_power_constraint(void *phl, enum phl_band_idx band_idx, u16 mb
+	, enum phl_cmd_type cmd_type, u32 cmd_timeout);
+
+enum rtw_phl_status
+rtw_phl_cmd_set_tx_power(void *phl, enum phl_band_idx band_idx
+	, enum phl_cmd_type cmd_type, u32 cmd_timeout);
 
 enum rtw_phl_status rtw_phl_get_txinfo_pwr(void *phl, s16 *pwr_dbm);
 /*****************************************************************************/
 
 u32 rtw_phl_get_phy_stat_info(void *phl, enum phl_band_idx hw_band,
 			      enum phl_stat_info_query phy_stat);
+
+bool rtw_phl_get_wl_dis_val(void *phl, bool *blocked);
 #endif /*_PHL_API_H_*/
 

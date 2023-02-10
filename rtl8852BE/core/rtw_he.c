@@ -1418,6 +1418,8 @@ void rtw_he_set_om_info(_adapter *padapter, u8 om_mask, struct rtw_he_actrl_om *
 	RTW_INFO("%s, cur_om_info->om_actrl_ele.er_su_disable = %d\n", __func__, cur_om_info->om_actrl_ele.er_su_disable);
 	RTW_INFO("%s, cur_om_info->om_actrl_ele.dl_mu_mimo_rr = %d\n", __func__, cur_om_info->om_actrl_ele.dl_mu_mimo_rr);
 	RTW_INFO("%s, cur_om_info->om_actrl_ele.ul_mu_data_disable = %d\n", __func__, cur_om_info->om_actrl_ele.ul_mu_data_disable);
+	RTW_INFO("%s, cur_om_info->actrl_om_normal_tx = %d\n", __func__, cur_om_info->actrl_om_normal_tx);
+	RTW_INFO("%s, cur_om_info->actrl_om_normal_tx_cnt = %d\n", __func__, cur_om_info->actrl_om_normal_tx_cnt);
 #endif
 }
 
@@ -1574,5 +1576,18 @@ void rtw_update_he_ies(_adapter *padapter, WLAN_BSSID_EX *pnetwork)
 	he_op_ie_len = rtw_build_he_operation_ie(padapter, he_op_ie);
 	rtw_add_bcn_ie_ex(padapter, pnetwork, he_op_eid_ext, he_op_ie + 2, he_op_ie_len - 2);
 }
+
+int rtw_he_om_ctrl_ulmu_dis(_adapter *padapter)
+{
+	struct rtw_he_actrl_om om_info = {0};
+	u8 om_mask = 0;
+
+	om_mask = om_mask | OM_UL_MU_DIS;
+	om_info.om_actrl_ele.ul_mu_disable = _TRUE;
+
+	rtw_he_set_om_info(padapter, om_mask, &om_info);
+	return issue_qos_nulldata(padapter, NULL, 0, 0, 3, 10, _TRUE);
+}
+
 #endif /* CONFIG_80211AX_HE */
 

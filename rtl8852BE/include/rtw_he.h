@@ -1004,5 +1004,6 @@ void rtw_he_set_om_info(_adapter *padapter, u8 om_mask, struct rtw_he_actrl_om *
 void rtw_he_init_om_info(_adapter *padapter);
 void rtw_process_he_triggerframe(_adapter *padapter,union recv_frame *precv_frame);
 void rtw_update_he_ies(_adapter *padapter, WLAN_BSSID_EX *pnetwork);
+int rtw_he_om_ctrl_ulmu_dis(_adapter *padapter);
 #endif /* _RTW_HE_H_ */
 

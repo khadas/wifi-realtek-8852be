@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2019 Realtek Corporation.
+ * Copyright(c) 2019 - 2022 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -739,6 +739,10 @@ enum rtw_phl_status phl_register_handler(struct rtw_phl_com_t *phl_com,
 		workitem = &handler->os_handler.u.workitem;
 		phl_status = _os_workitem_init(drv_priv, workitem,
 										handler->callback, workitem);
+	} else if (handler->type == RTW_PHL_HANDLER_PRIO_NORMAL) {
+		_os_sema_init(drv_priv, &(handler->os_handler.hdlr_sema), 0);
+		handler->os_handler.hdlr_created = false;
+		phl_status = RTW_PHL_STATUS_SUCCESS;
 	} else {
 		PHL_TRACE(COMP_PHL_DBG, _PHL_INFO_, "[WARNING] unknown handle type(%d)\n",
 				handler->type);
@@ -757,6 +761,7 @@ enum rtw_phl_status phl_deregister_handler(
 	enum rtw_phl_status phl_status = RTW_PHL_STATUS_FAILURE;
 	_os_tasklet *tasklet = NULL;
 	_os_workitem *workitem = NULL;
+	_os_thread *thread = NULL;
 	void *drv_priv = phlcom_to_drvpriv(phl_com);
 
 	FUNCIN_WSTS(phl_status);
@@ -767,6 +772,17 @@ enum rtw_phl_status phl_deregister_handler(
 	} else if (handler->type == RTW_PHL_HANDLER_PRIO_LOW) {
 		workitem = &handler->os_handler.u.workitem;
 		phl_status = _os_workitem_deinit(drv_priv, workitem);
+	} else if (handler->type == RTW_PHL_HANDLER_PRIO_NORMAL) {
+		thread = &handler->os_handler.u.thread;
+		if (handler->os_handler.hdlr_created == true) {
+			_os_thread_stop(drv_priv, thread);
+			_os_sema_up(drv_priv, &(handler->os_handler.hdlr_sema));
+			phl_status = _os_thread_deinit(drv_priv, thread);
+		} else {
+			phl_status = RTW_PHL_STATUS_SUCCESS;
+		}
+
+		_os_sema_free(drv_priv, &(handler->os_handler.hdlr_sema));
 	} else {
 		PHL_TRACE(COMP_PHL_DBG, _PHL_INFO_, "[WARNING] unknown handle type(%d)\n",
 				handler->type);
@@ -782,12 +798,45 @@ enum rtw_phl_status phl_deregister_handler(
 	return phl_status;
 }
 
+static int _phl_thread_handler(void *context)
+{
+	struct rtw_phl_handler *phl_handler;
+	struct phl_info_t *phl_info;
+	void *d;
+
+
+	phl_handler = (struct rtw_phl_handler *)phl_container_of(context,
+							struct rtw_phl_handler,
+							os_handler);
+	phl_info = (struct phl_info_t *)phl_handler->context;
+	d = phl_to_drvpriv(phl_info);
+
+	PHL_TRACE(COMP_PHL_DBG, _PHL_INFO_, "%s start\n", phl_handler->cb_name);
+
+	while (1) {
+		_os_sema_down(d, &phl_handler->os_handler.hdlr_sema);
+
+		if (_os_thread_check_stop(d, (_os_thread*)context))
+			break;
+
+		phl_handler->callback(context);
+	}
+
+	_os_thread_wait_stop(d, (_os_thread*)context);
+	_os_sema_free(d, &phl_handler->os_handler.hdlr_sema);
+
+	PHL_TRACE(COMP_PHL_DBG, _PHL_INFO_, "%s down\n", phl_handler->cb_name);
+
+	return 0;
+}
+
 enum rtw_phl_status phl_schedule_handler(
 	struct rtw_phl_com_t *phl_com, struct rtw_phl_handler *handler)
 {
 	enum rtw_phl_status phl_status = RTW_PHL_STATUS_FAILURE;
 	_os_tasklet *tasklet = NULL;
 	_os_workitem *workitem = NULL;
+	_os_thread *thread = NULL;
 	void *drv_priv = phlcom_to_drvpriv(phl_com);
 
 	FUNCIN_WSTS(phl_status);
@@ -798,6 +847,21 @@ enum rtw_phl_status phl_schedule_handler(
 	} else if (handler->type == RTW_PHL_HANDLER_PRIO_LOW) {
 		workitem = &handler->os_handler.u.workitem;
 		phl_status = _os_workitem_schedule(drv_priv, workitem);
+	} else if (handler->type == RTW_PHL_HANDLER_PRIO_NORMAL) {
+		thread = &handler->os_handler.u.thread;
+		if (handler->os_handler.hdlr_created == false) {
+			phl_status = _os_thread_init(drv_priv, thread,
+						     _phl_thread_handler,
+						     thread, handler->cb_name);
+			if (phl_status == RTW_PHL_STATUS_SUCCESS) {
+				handler->os_handler.hdlr_created = true;
+				_os_thread_schedule(drv_priv, thread);
+				_os_sema_up(drv_priv, &(handler->os_handler.hdlr_sema));
+			}
+		} else {
+			_os_sema_up(drv_priv, &(handler->os_handler.hdlr_sema));
+			phl_status = RTW_PHL_STATUS_SUCCESS;
+		}
 	} else {
 		PHL_TRACE(COMP_PHL_DBG, _PHL_INFO_, "[WARNING] unknown handle type(%d)\n",
 				handler->type);
@@ -1284,6 +1348,9 @@ enum rtw_phl_status phl_datapath_init(struct phl_info_t *phl_info)
 	struct phl_hci_trx_ops *hci_trx_ops = phl_info->hci_trx_ops;
 	struct rtw_phl_handler *event_handler = &phl_info->phl_event_handler;
 	void *drv_priv = NULL;
+#ifdef CONFIG_PHL_CPU_BALANCE_RX_THREAD
+	const char *event_hdl_cb_name = "RTW_DATAPATH_CB_THREAD";
+#endif
 	FUNCIN_WSTS(pstatus);
 	drv_priv = phl_to_drvpriv(phl_info);
 
@@ -1302,6 +1369,12 @@ enum rtw_phl_status phl_datapath_init(struct phl_info_t *phl_info)
 #ifdef CONFIG_PHL_CPU_BALANCE_RX
 		event_handler->type = RTW_PHL_HANDLER_PRIO_LOW;
 		_os_workitem_config_cpu(drv_priv, workitem, "RX_PHL_0", CPU_ID_RX_CORE_0);
+#elif defined(CONFIG_PHL_CPU_BALANCE_RX_THREAD)
+		event_handler->type = RTW_PHL_HANDLER_PRIO_NORMAL;
+		_os_strncpy(event_handler->cb_name, event_hdl_cb_name,
+				(_os_strlen((u8*)event_hdl_cb_name) > RTW_PHL_HANDLER_CB_NAME_LEN) ?
+				RTW_PHL_HANDLER_CB_NAME_LEN : _os_strlen((u8*)event_hdl_cb_name));
+		event_handler->os_handler.u.thread.cpu_id = CPU_ID_RX_CORE_0;
 #else
 		event_handler->type = RTW_PHL_HANDLER_PRIO_HIGH;
 #endif

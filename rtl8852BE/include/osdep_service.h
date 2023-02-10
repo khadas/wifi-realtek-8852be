@@ -35,6 +35,9 @@
 
 #ifdef PLATFORM_LINUX
 	#include <linux/version.h>
+#if defined(CONFIG_RTW_ANDROID_GKI)
+	#include <linux/firmware.h>
+#endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0))
 	#include <linux/sched/signal.h>
 	#include <linux/sched/types.h>
@@ -283,6 +286,9 @@ void _rtw_memmove(void *dst, const void *src, u32 sz);
 int _rtw_memcmp(const void *dst, const void *src, u32 sz);
 int _rtw_memcmp2(const void *dst, const void *src, u32 sz);
 void _rtw_memset(void *pbuf, int c, u32 sz);
+#ifdef CONFIG_RTW_NEON_MODE
+void _rtw_neon_memcpy(volatile void *dst, volatile const void *src, u32 sz);
+#endif
 
 void _rtw_init_listhead(_list *list);
 u32 rtw_is_list_empty(_list *phead);
@@ -498,10 +504,10 @@ int rtw_test_and_clear_bit(int nr, unsigned long *addr);
 int rtw_test_and_set_bit(int nr, unsigned long *addr);
 
 /* File operation APIs, just for linux now */
-#ifndef CONFIG_RTW_ANDROID
+#if !defined(CONFIG_RTW_ANDROID_GKI)
 int rtw_is_dir_readable(const char *path);
 int rtw_store_to_file(const char *path, u8 *buf, u32 sz);
-#endif /* CONFIG_RTW_ANDROID */
+#endif /* !defined(CONFIG_RTW_ANDROID_GKI) */
 int rtw_is_file_readable(const char *path);
 int rtw_is_file_readable_with_size(const char *path, u32 *sz);
 int rtw_readable_file_sz_chk(const char *path, u32 sz);

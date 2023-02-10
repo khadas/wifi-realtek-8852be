@@ -110,6 +110,7 @@ typedef struct _ADAPTER _adapter;
 #include <sta_info.h>
 #include <rtw_event.h>
 #include <rtw_mlme_ext.h>
+#include "../core/rtw_txpwr.h"
 #include <rtw_sec_cam.h>
 #include <rtw_mi.h>
 #include <rtw_ap.h>
@@ -423,6 +424,7 @@ struct registry_priv {
 	u8 adaptivity_mode;
 	s8 adaptivity_th_l2h_ini;
 	s8 adaptivity_th_edcca_hl_diff;
+	u8 adaptivity_idle_probability;
 
 	u8 boffefusemask;
 	BOOLEAN bFileMaskEfuse;
@@ -618,7 +620,7 @@ struct registry_priv {
 #define SZ_MGT_RING		(SZ_TXREQ + SZ_PKT_LIST)/* MGT_TXREQ_QMGT */
 
 #ifdef CONFIG_RTW_REDUCE_MEM
-#define MAX_TX_RING_NUM 	512
+#define MAX_TX_RING_NUM 	CORE_MAX_TX_RING_NUM
 #else
 #define MAX_TX_RING_NUM 	4096
 #endif
@@ -976,6 +978,8 @@ struct rf_ctl_t {
 	u8 highest_ht_rate_bw_bmp;
 	u8 highest_vht_rate_bw_bmp;
 #endif
+	u8 tpc_mode;
+	u16 tpc_manual_constraint; /* mB */
 
 	bool ch_sel_within_same_band;
 
@@ -1841,6 +1845,9 @@ struct _ADAPTER {
 
 #ifdef CONFIG_ECSA_PHL
 	struct core_ecsa_info ecsa_info;
+#endif
+#ifdef CONFIG_RESUME_CHANNEL
+	u16	resu_ch;
 #endif
 };
 

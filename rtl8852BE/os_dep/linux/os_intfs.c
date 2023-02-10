@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2021 Realtek Corporation.
+ * Copyright(c) 2007 - 2022 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -314,6 +314,16 @@ void rtw_ndev_uninit(struct net_device *dev)
 #endif /* CONFIG_RTW_NAPI */
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+static int rtw_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
+			      void __user *data, int cmd)
+{
+	/* handle cmd(s) between SIOCDEVPRIVATE and SIOCDEVPRIVATE + 15 */
+
+	return rtw_ioctl(dev, ifr, cmd);
+}
+#endif
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29))
 static const struct net_device_ops rtw_netdev_ops = {
 	.ndo_init = rtw_ndev_init,
@@ -327,6 +337,9 @@ static const struct net_device_ops rtw_netdev_ops = {
 	.ndo_set_mac_address = rtw_net_set_mac_address,
 	.ndo_get_stats = rtw_net_get_stats,
 	.ndo_do_ioctl = rtw_ioctl,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	.ndo_siocdevprivate = rtw_siocdevprivate,
+#endif
 };
 #endif
 
@@ -957,6 +970,13 @@ u8 rtw_init_default_value(_adapter *padapter)
 	padapter->tx_amsdu = 2;
 	padapter->tx_amsdu_rate = 10;
 #endif
+	if (pregistrypriv->adaptivity_idle_probability == 1) {
+#ifdef CONFIG_TX_AMSDU
+		padapter->tx_amsdu = 0;
+		padapter->tx_amsdu_rate = 0;
+#endif
+		padapter->dis_turboedca = 1;
+	}
 	padapter->driver_tx_max_agg_num = 0xFF;
 #ifdef DBG_RX_COUNTER_DUMP
 	padapter->dump_rx_cnt_mode = 0;
@@ -1324,7 +1344,10 @@ u8 rtw_init_drv_sw(_adapter *padapter)
 #ifdef CONFIG_RTW_CFGVENDOR_RANDOM_MAC_OUI
 	struct rtw_wdev_priv *pwdev_priv = adapter_wdev_data(padapter);
 #endif
-
+#ifdef CONFIG_RESUME_CHANNEL
+	padapter->resu_ch = 0;
+	printk("[Leo_debug] padapter->resu_ch = %d !!! [%s:%d]", padapter->resu_ch, __func__, __LINE__);	// Leo debug
+#endif
 	ret8 = rtw_init_default_value(padapter);/*load registrypriv value*/
 
 	if (rtw_init_mlme_priv(padapter) == _FAIL) {
@@ -1615,6 +1638,9 @@ static const struct net_device_ops rtw_netdev_vir_if_ops = {
 	.ndo_set_mac_address = rtw_net_set_mac_address,
 	.ndo_get_stats = rtw_net_get_stats,
 	.ndo_do_ioctl = rtw_ioctl,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	.ndo_siocdevprivate = rtw_siocdevprivate,
+#endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35))
 	.ndo_select_queue	= rtw_select_queue,
 #endif
@@ -2486,11 +2512,6 @@ static int netdev_close(struct net_device *pnetdev)
 			pmlmeinfo->disconnect_code = DISCONNECTION_BY_SYSTEM_DUE_TO_NET_DEVICE_DOWN;
 			pmlmeinfo->wifi_reason_code = WLAN_REASON_DEAUTH_LEAVING;
 		}
-
-#ifdef CONFIG_STA_CMD_DISPR
-		rtw_connect_abort_wait(padapter);
-		rtw_disconnect_abort_wait(padapter);
-#endif /* CONFIG_STA_CMD_DISPR */
 	}
 
 #ifdef CONFIG_BR_EXT
@@ -2864,6 +2885,10 @@ int rtw_suspend_free_assoc_resource(_adapter *padapter)
 				MAC_ARG(pmlmepriv->cur_network.network.MacAddress),
 				pmlmepriv->cur_network.network.Ssid.SsidLength,
 				pmlmepriv->assoc_ssid.SsidLength);
+		  #ifdef CONFIG_RESUME_CHANNEL
+			padapter->resu_ch = pmlmeext->chandef.chan;
+			printk("[Leo_debug] padapter->resu_ch = %d !!! [%s:%d]", padapter->resu_ch, __func__, __LINE__);	// Leo debug
+		  #endif
 			rtw_set_to_roam(padapter, 1);
 		}
 	}

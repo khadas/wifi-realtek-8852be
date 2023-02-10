@@ -130,9 +130,13 @@ u8 rtw_hw_mcc_chk_inprogress(struct _ADAPTER *a);
 
 void rtw_update_phl_edcca_mode(struct _ADAPTER *a);
 
-void rtw_dump_phl_tx_power_ext_info(void *sel, _adapter *adapter);
+struct tx_power_ext_info;
+bool rtw_txpwr_hal_get_ext_info(struct dvobj_priv *dvobj, struct tx_power_ext_info *info);
 
-void rtw_update_phl_txpwr_level(_adapter *adapter);
+bool rtw_txpwr_hal_get_pwr_lmt_en(struct dvobj_priv *dvobj);
+struct tx_power_ext_info;
+bool rtw_txpwr_hal_get_ext_info(struct dvobj_priv *dvobj, struct tx_power_ext_info *info);
+void rtw_txpwr_hal_update_pwr(struct dvobj_priv *dvobj, enum phl_band_idx band_idx);
 
 u8 get_phy_tx_nss(_adapter *adapter);
 u8 get_phy_rx_nss(_adapter *adapter);

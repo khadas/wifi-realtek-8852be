@@ -335,8 +335,10 @@ static inline bool _rtw_scan_abort_check(_adapter *adapter, const char *caller)
 	pmlmeext->scan_abort = _FALSE;
 	pmlmeext->scan_abort_to = _FALSE;
 	if (sctx) {
-		RTW_INFO("%s scan abort .....(%d ms)\n", caller, rtw_get_passing_time_ms(sctx->submit_time));
-		rtw_sctx_done(&sctx);
+		if (sctx->status == RTW_SCTX_SUBMITTED) {
+			RTW_INFO("%s scan abort .....(%d ms)\n", caller, rtw_get_passing_time_ms(sctx->submit_time));
+			rtw_sctx_done(&sctx);
+		}
 	}
 	return _TRUE;
 }
@@ -3044,11 +3046,8 @@ static int roch_ready_cb(void *priv, struct rtw_phl_scan_param *param)
 {
 	struct scan_priv *scan_priv = (struct scan_priv *)priv;
 	_adapter *padapter = scan_priv->padapter;
-	struct cfg80211_roch_info *pcfg80211_rochinfo =
-		&padapter->cfg80211_rochinfo;
 
-	RTW_INFO("%s cookie:0x%llx\n", __func__,
-		pcfg80211_rochinfo->remain_on_ch_cookie);
+	RTW_INFO("%s cookie:0x%llx\n", __func__, scan_priv->cookie);
 
 	if ((scan_priv->roch_step & ROCH_CH_READY))
 		return 0;
@@ -3124,7 +3123,7 @@ _exit:
 		, scan_priv->channel_type, GFP_KERNEL);
 
 	RTW_INFO("cfg80211_remain_on_channel_expired cookie:0x%llx\n"
-		, pcfg80211_rochinfo->remain_on_ch_cookie);
+		, scan_priv->cookie);
 
 	RTW_INFO(FUNC_ADPT_FMT" takes %d ms to scan %d/%d channels\n",
 			FUNC_ADPT_ARG(padapter), param->total_scan_time,
@@ -3158,7 +3157,6 @@ static int p2p_roch_start_cb(void *priv, struct rtw_phl_scan_param *param)
 
 	rtw_cfg80211_set_is_roch(padapter, _TRUE);
 	pcfg80211_rochinfo->ro_ch_wdev = scan_priv->wdev;
-	pcfg80211_rochinfo->remain_on_ch_cookie = scan_priv->cookie;
 	pcfg80211_rochinfo->duration = scan_priv->duration;
 	rtw_cfg80211_set_last_ro_ch_time(padapter);
 	_rtw_memcpy(&pcfg80211_rochinfo->remain_on_ch_channel,
@@ -3194,8 +3192,6 @@ static int roch_complete_cb(void *priv, struct rtw_phl_scan_param *param)
 {
 	struct scan_priv *scan_priv = (struct scan_priv *)priv;
 	_adapter *padapter = scan_priv->padapter;
-	struct cfg80211_roch_info *pcfg80211_rochinfo =
-		&padapter->cfg80211_rochinfo;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	int ret = _FAIL;
 
@@ -3224,7 +3220,7 @@ _exit:
 		, scan_priv->channel_type, GFP_KERNEL);
 
 	RTW_INFO("cfg80211_remain_on_channel_expired cookie:0x%llx\n"
-		, pcfg80211_rochinfo->remain_on_ch_cookie);
+		, scan_priv->cookie);
 
 	RTW_INFO(FUNC_ADPT_FMT" takes %d ms to scan %d/%d channels\n",
 			FUNC_ADPT_ARG(padapter), param->total_scan_time,

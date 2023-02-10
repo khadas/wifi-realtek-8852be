@@ -20,16 +20,6 @@
 #include "phy/bb/halbb_hw_cfg_ex.h"
 
 #ifdef USE_TRUE_PHY
-enum phl_phy_idx rtw_hal_bb_band_to_phy_idx(struct rtw_hal_com_t *hal_com, u8 band_idx)
-{
-	enum phl_phy_idx p_idx = HW_PHY_0;
-
-	if (band_idx == 1)
-		p_idx = HW_PHY_1;
-
-	return p_idx;
-}
-
 void rtw_hal_bb_dfs_en(struct hal_info_t *hal_info, bool en)
 {
 	halbb_dfs_en(hal_info->bb, en);
@@ -878,6 +868,13 @@ rtw_hal_bb_parse_phy_sts(void *hal, void *ppdu_sts,
 					"phy_info->rssi_path[%d] = %d\n",
 					i, phy_info->rssi_path[i]);
 		}
+		/* SNR from bb rpt */
+		phy_info->snr_fd_avg = bb_rpt.snr_fd_avg;
+		phy_info->snr_td_avg = bb_rpt.snr_td_avg;
+		for ( i = 0; i < RTW_PHL_MAX_RF_PATH; i++) {
+			phy_info->snr_fd[i] = bb_rpt.snr_fd[i];
+			phy_info->snr_td[i] = bb_rpt.snr_td[i];
+		}
 #ifdef RTW_WKARD_SINGLE_PATH_RSSI
 		if (RF_PATH_A == hal_info->hal_com->cur_rx_rfpath) {
 			phy_info->rssi = phy_info->rssi_path[0];
@@ -1637,11 +1634,6 @@ rtw_hal_bb_mcc_start(struct hal_info_t *hal_info,
 
 
 #else /*ifndef USE_TRUE_PHY*/
-enum phl_phy_idx rtw_hal_bb_band_to_phy_idx(struct rtw_hal_com_t *hal_com, u8 band_idx)
-{
-	return HW_PHY_0;
-}
-
 void rtw_hal_bb_dfs_en(struct hal_info_t *hal_info, bool en)
 {
 }

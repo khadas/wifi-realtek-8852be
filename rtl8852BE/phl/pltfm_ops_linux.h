@@ -215,7 +215,7 @@ static inline void *_os_pkt_buf_unmap_rx(void *d, _dma bus_addr_l, _dma bus_addr
 	if (g_pcie_reserved_mem_dev)
 		pdev->dev.dma_mask = NULL;
 #endif
-	pci_unmap_single(pdev, bus_addr_l, buf_sz, PCI_DMA_FROMDEVICE);
+	dma_unmap_single(&pdev->dev, bus_addr_l, buf_sz, DMA_FROM_DEVICE);
 #endif
 
 #ifdef RTW_CORE_RECORD
@@ -237,7 +237,7 @@ static inline void *_os_pkt_buf_map_rx(void *d, _dma *bus_addr_l, _dma *bus_addr
 	if (g_pcie_reserved_mem_dev)
 		pdev->dev.dma_mask = NULL;
 #endif
-	*bus_addr_l = pci_map_single(pdev, skb->data, buf_sz, PCI_DMA_FROMDEVICE);
+	*bus_addr_l = dma_map_single(&pdev->dev, skb->data, buf_sz, DMA_FROM_DEVICE);
 	/* *bus_addr_h = NULL;*/
 #endif /*CONFIG_PCI_HCI*/
 
@@ -312,8 +312,8 @@ static inline void *_os_pkt_buf_alloc_rx(void *d, _dma *bus_addr_l,
 		pdev->dev.dma_mask = NULL;
 #endif
 	if (cache)
-		*bus_addr_l = pci_map_single(pdev, skb->data,
-			rxbuf_size, PCI_DMA_FROMDEVICE);
+		*bus_addr_l = dma_map_single(&pdev->dev, skb->data,
+			rxbuf_size, DMA_FROM_DEVICE);
 	else
 		*bus_addr_l = *(dma_addr_t *)skb->cb;
 	/* *bus_addr_h = NULL;*/
@@ -339,7 +339,7 @@ static inline void _os_pkt_buf_free_rx(void *d, u8 *vir_addr, _dma bus_addr_l,
 		pdev->dev.dma_mask = NULL;
 #endif
 	if (cache)
-		pci_unmap_single(pdev, bus_addr_l, buf_sz, PCI_DMA_FROMDEVICE);
+		dma_unmap_single(&pdev->dev, bus_addr_l, buf_sz, DMA_FROM_DEVICE);
 
 	if (!cache)
 		_os_free_noncashe_skb(pdev, skb, buf_sz);
@@ -665,23 +665,47 @@ static inline bool _os_atomic_inc_unless(void *d, _os_atomic *v, int u)
 }
 */
 
+static inline void rtw_taskletw_hdl(unsigned long data)
+{
+	_taskletw *ptask = (_taskletw *) data;
+
+	ptask->func(ptask->data);
+}
+
+static inline void rtw_taskletw_init(_taskletw *t,  void (*func)(void *), void *data)
+{
+	t->func = func;
+	t->data = data;
+	tasklet_init(&t->tasklet, rtw_taskletw_hdl, (unsigned long) t);
+}
+
+static inline void rtw_taskletw_kill(_taskletw *t)
+{
+	tasklet_kill(&t->tasklet);
+}
+
+static inline void rtw_taskletw_hi_schedule(_taskletw *t)
+{
+	tasklet_hi_schedule(&t->tasklet);
+}
+
 static inline u8 _os_tasklet_init(void *drv_priv, _os_tasklet *task,
 	void (*call_back_func)(void* context), void *context)
 {
-	rtw_tasklet_init(task,
-			 (void(*)(unsigned long))call_back_func,
-			 (unsigned long)task);
+	rtw_taskletw_init(task,
+			 call_back_func,
+			 task);
 	return 0;
 }
 static inline u8 _os_tasklet_deinit(void *drv_priv, _os_tasklet *task)
 {
-	rtw_tasklet_kill(task);
+	rtw_taskletw_kill(task);
 	return 0;
 }
 static inline u8 _os_tasklet_schedule(void *drv_priv, _os_tasklet *task)
 {
 	#if 1
-	rtw_tasklet_hi_schedule(task);
+	rtw_taskletw_hi_schedule(task);
 	#else
 	rtw_tasklet_schedule(task);
 	#endif
@@ -693,9 +717,13 @@ static __inline u8 _os_thread_init(	void *drv_priv, _os_thread *thread,
 					void *context,
 					const char namefmt[])
 {
-	thread->thread_handler = rtw_thread_start((int(*)(void*))call_back_func, context, namefmt);
+	RST_THREAD_STATUS(thread);
+#ifdef CONFIG_PHL_CPU_BALANCE_RX_THREAD
+	thread->thread_handler = rtw_thread_cpu_start(call_back_func, context, namefmt, thread->cpu_id);
+#else
+	thread->thread_handler = rtw_thread_start(call_back_func, context, namefmt);
+#endif
 	if (thread->thread_handler) {
-		RST_THREAD_STATUS(thread);
 		SET_THREAD_STATUS(thread, THREAD_STATUS_STARTED);
 		return RTW_PHL_STATUS_SUCCESS;
 	}
@@ -706,7 +734,7 @@ static __inline u8 _os_thread_deinit(void *drv_priv, _os_thread *thread)
 {
 	if (CHK_THREAD_STATUS(thread, THREAD_STATUS_STARTED)) {
 		CLR_THREAD_STATUS(thread, THREAD_STATUS_STARTED);
-		return rtw_thread_stop(thread->thread_handler);
+		rtw_thread_stop(thread->thread_handler);
 	}
 
 	return RTW_PHL_STATUS_SUCCESS;

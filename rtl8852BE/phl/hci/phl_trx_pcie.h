@@ -41,6 +41,11 @@ struct rtw_rx_buf_ring {
 	u16 busy_rxbuf_cnt;
 	_os_lock idle_rxbuf_lock;
 	_os_lock busy_rxbuf_lock;
+#ifdef CONFIG_DYNAMIC_RX_BUF
+    _os_list empty_rxbuf_list;
+    _os_lock empty_rxbuf_lock;
+    u16 empty_rxbuf_cnt;
+#endif
 };
 
 struct rtw_wp_tag {

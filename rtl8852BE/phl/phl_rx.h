@@ -69,4 +69,8 @@ void phl_dump_all_sta_rx_info(struct phl_info_t *phl_info);
 u16 rtw_phl_query_new_rx_num(void *phl);
 void phl_rx_dbg_dump(struct phl_info_t *phl_info, u8 band_idx);
 
+#ifdef CONFIG_PCI_HCI
+u32 rtw_phl_get_hw_cnt_rdu(void *phl);
+#endif
+
 #endif /*_PHL_RX_H_*/

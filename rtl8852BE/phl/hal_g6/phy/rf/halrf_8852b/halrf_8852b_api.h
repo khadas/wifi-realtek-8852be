@@ -40,5 +40,6 @@ s8 halrf_get_ther_protected_threshold_8852b(struct rf_info *rf);
 
 s8 halrf_xtal_tracking_offset_8852b(struct rf_info *rf, enum phl_phy_idx phy);
 
+void halrf_rfmode_check_8852b(struct rf_info *rf);
 #endif
 #endif /*  __INC_PHYDM_API_H_8852B__ */

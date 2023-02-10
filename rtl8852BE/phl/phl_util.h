@@ -38,23 +38,35 @@
 #define CLEAR_STATUS_FLAG(_status,_flags)\
 	((_status) &= ~(_flags))
 
-static inline void _add_bitmap_bit(u8 *bitmap, u8 *arr, u32 len)
-{
-	u32 k = 0;
-	for(k = 0; k < (len); k++)
-		bitmap[arr[k] / 8] |= (BIT0 << (arr[k] % 8));
-}
-
-static inline void _clr_bitmap_bit(u8 *bitmap, u8 *arr, u32 len)
+static inline void _add_bitmap_bit(u8 *bitmap, u8 max_map_len,u8 *arr, u8 cnt)
 {
 	u32 k = 0;
 
-	for(k = 0; k < (len); k++)
-		bitmap[arr[k] / 8] &= ~(BIT0 << (arr[k] % 8));
+	for(k = 0; k < (cnt); k++) {
+		if ((arr[k] / 8) < max_map_len)
+			bitmap[arr[k] / 8] |= (BIT0 << (arr[k] % 8));
+	}
 }
 
-#define _chk_bitmap_bit(_bitmap, _id) \
-	((_bitmap)[(_id) / 8] & (BIT0 << ((_id) % 8)))
+static inline void _clr_bitmap_bit(u8 *bitmap, u8 max_map_len, u8 *arr, u8 cnt)
+{
+	u32 k = 0;
+
+	for(k = 0; k < (cnt); k++) {
+		if ((arr[k] / 8) < max_map_len)
+			bitmap[arr[k] / 8] &= ~(BIT0 << (arr[k] % 8));
+	}
+}
+
+static inline bool _chk_bitmap_bit(u8 *bitmap, u8 max_map_len, u8 _id)
+{
+	if ((_id / 8) < max_map_len)
+		return (bitmap[(_id) / 8] & (BIT0 << ((_id) % 8)));
+
+	/*_os_warn_on(1);*/
+	return false;
+}
+
 
 #define _reset_bitmap(_d, _bitmap ,_len) _os_mem_set(_d, _bitmap, 0, _len)
 

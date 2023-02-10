@@ -283,4 +283,57 @@ s8 halrf_xtal_tracking_offset_8852b(struct rf_info *rf,
 	return xtal_ofst;
 }
 
+void rf_reset_a_hwsi_8852b(struct rf_info *rf, bool is_reset)
+{
+	u8 val;
+
+	if (is_reset) {
+		// reset ARFC HW_SI
+		rtw_hal_mac_get_xsi((rf)->hal_com, 0x81, &val);
+		val &= (~0xc0);
+		rtw_hal_mac_set_xsi((rf)->hal_com, 0x81, val);
+
+		rtw_hal_mac_get_xsi((rf)->hal_com, 0x80, &val);
+		val &= (~0xc0);
+		rtw_hal_mac_set_xsi((rf)->hal_com, 0x80, val);
+	} else {
+		//release HW_SI reset
+		rtw_hal_mac_get_xsi((rf)->hal_com, 0x81, &val);
+		val |= 0xc0;
+		rtw_hal_mac_set_xsi((rf)->hal_com, 0x81, val);
+
+		rtw_hal_mac_get_xsi((rf)->hal_com, 0x80, &val);
+		val |= 0xc0;
+		rtw_hal_mac_set_xsi((rf)->hal_com, 0x80, val);
+	}
+}
+
+void halrf_rfmode_check_8852b(struct rf_info *rf)
+{
+
+	RF_WARNING("Enter halrf_rfmode_check_8852b\n");
+
+	if ((halrf_rrf(rf, RF_PATH_A, 0x0, 0xf0000) == 0) ||(halrf_rrf(rf, RF_PATH_B, 0x0, 0xf0000) == 0)) {
+		RF_WARNING("RF mode abnormal!!! S0 = 0x%x,S1 = 0x%x\n",halrf_rrf(rf, RF_PATH_A, 0x0, 0xf0000), halrf_rrf(rf, RF_PATH_B, 0x0, 0xf0000));
+		RF_WARNING("HWSI reset!!!\n");
+
+		// disable hwsi trigger
+		halrf_wreg(rf, 0x1200, 0x70000000, 0x7);
+		halrf_wreg(rf, 0x3200, 0x70000000, 0x7);
+		halrf_delay_us(rf, 1);
+		// reset A die HW SI
+		rf_reset_a_hwsi_8852b(rf, true);
+		// reset D die HW SI
+		halrf_wreg(rf, 0x12AC, 0x1, 0x0);
+		halrf_wreg(rf, 0x32AC, 0x1, 0x0);
+
+		rf_reset_a_hwsi_8852b(rf, false);
+		// enable hwsi trigger
+		halrf_wreg(rf, 0x1200, 0x70000000, 0x0);
+		halrf_wreg(rf, 0x3200, 0x70000000, 0x0);
+		halrf_wreg(rf, 0x12AC, 0x1, 0x1);
+		halrf_wreg(rf, 0x32AC, 0x1, 0x1);
+	}
+}
+
 #endif

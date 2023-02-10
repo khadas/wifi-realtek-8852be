@@ -3532,6 +3532,8 @@ u32 lv1rst_stop_dma_pcie(struct mac_ax_adapter *adapter, u8 val)
 			dma_rst |= B_AX_HCI_TXDMA_EN;
 		if (reg32 & B_AX_RX_STUCK)
 			dma_rst |= B_AX_HCI_RXDMA_EN;
+		if (MAC_REG_R32(R_AX_PCIE_DMA_BUSY1))
+			dma_rst |= (B_AX_HCI_TXDMA_EN | B_AX_HCI_RXDMA_EN);
 		reg32 = MAC_REG_R32(R_AX_HCI_FUNC_EN);
 		MAC_REG_W32(R_AX_HCI_FUNC_EN, reg32 & ~dma_rst);
 		MAC_REG_W32(R_AX_HCI_FUNC_EN, reg32 | dma_rst);

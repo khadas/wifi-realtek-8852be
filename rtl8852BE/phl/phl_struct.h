@@ -173,6 +173,39 @@ struct phl_tid_ampdu_rx {
 	struct phl_info_t *phl_info;
 };
 
+#ifdef DEBUG_PHL_RX
+struct phl_rx_stats {
+	u32 rx_isr;
+	u32 phl_rx;
+	u32 rx_type_all;
+	u32 rx_type_wifi;
+	u32 rx_type_ppdu;
+	u32 rx_type_wp;
+	u32 rx_type_c2h;
+	u32 rx_amsdu;
+
+	u32 rx_dont_reorder;
+	u32 rx_put_reorder;
+
+	u32 rx_drop_get;
+	u32 rx_rdy_fail;
+	u32 rxbd_fail;
+	u32 rx_drop_reorder;
+	u32 reorder_seq_less;
+	u32 reorder_dup;
+#ifdef PHL_RXSC_AMPDU
+	u32 rxsc_ampdu[3];
+#endif
+
+	u32 rx_pkt_core;
+	u32 rx_pktsz_phl;
+	u32 rx_pktsz_core;
+#ifdef CONFIG_DYNAMIC_RX_BUF
+	u32 rxbuf_empty;
+#endif
+};
+#endif /* DEBUG_PHL_RX */
+
 struct macid_ctl_t {
 	_os_lock lock;
 	/*  used macid bitmap share for all wifi role */
@@ -339,6 +372,10 @@ struct phl_info_t {
 	void *phl_twt_info; /* struct phl_twt_info */
 #ifdef PHL_RX_BATCH_IND
 	u8 rx_new_pending;
+#endif
+#ifdef DEBUG_PHL_RX
+	struct phl_rx_stats rx_stats;
+	u32 cnt_rx_pktsz;
 #endif
 
 	struct phl_wow_info wow_info;

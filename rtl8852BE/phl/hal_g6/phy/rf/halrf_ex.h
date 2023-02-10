@@ -101,6 +101,7 @@ u8 halrf_get_power_track(void *rf_void);
 void halrf_tssi_get_efuse_ex(void *rf_void, enum phl_phy_idx phy_idx);
 bool halrf_tssi_check_efuse_data(void *rf_void, enum phl_phy_idx phy_idx);
 void halrf_set_ref_power_to_struct(void *rf_void, enum phl_phy_idx phy_idx);
+bool halrf_set_power_constraint (void *rf_void, enum phl_phy_idx phy_idx, u16 mb, bool apply_to_hw);
 void halrf_bf_config_rf(void *rf_void);
 void halrf_rfk_reg_backup(void *rf_void);
 void halrf_rfc_reg_backup(void *rf_void);

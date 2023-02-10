@@ -100,6 +100,16 @@ u8 rtw_do_join(_adapter *padapter)
 		parm.ch[0].hw_value = pmlmepriv->assoc_ch;
 		parm.ch[0].flags = 0;
 	}
+	#ifdef CONFIG_RESUME_CHANNEL
+	printk("[Leo_debug] padapter->resu_ch = %d !!! [%s:%d]", padapter->resu_ch, __func__, __LINE__);	// Leo debug
+	if (padapter->resu_ch != 0 ) {
+		pmlmepriv->assoc_ch = padapter->resu_ch;
+		parm.ch[0].hw_value = padapter->resu_ch;
+		parm.ch_num = 1;
+		parm.ch[0].flags = 0;
+		padapter->resu_ch = 0;
+	}
+	#endif
 
 	if (_rtw_queue_empty(queue) == _TRUE) {
 		_rtw_spinunlock_bh(&(pmlmepriv->scanned_queue.lock));
@@ -115,6 +125,9 @@ u8 rtw_do_join(_adapter *padapter)
 
 			if ((ssc_chk == SS_ALLOW) || (ssc_chk == SS_DENY_BUSY_TRAFFIC) ){
 				/* submit site_survey_cmd */
+				#ifdef CONFIG_RESUME_CHANNEL
+				printk("[Leo_debug][scan] pmlmepriv->assoc_ch = %d !!! [%s:%d]", pmlmepriv->assoc_ch, __func__, __LINE__);	// Leo debug
+				#endif
 				ret = rtw_sitesurvey_cmd(padapter, &parm);
 				if (_SUCCESS != ret)
 					pmlmepriv->to_join = _FALSE;

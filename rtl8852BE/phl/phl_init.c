@@ -2210,6 +2210,9 @@ enum rtw_phl_status rtw_phl_interrupt_handler(void *phl)
 
 	/* rx interrupt */
 	if (int_hdler_msk & BIT1) {
+#ifdef DEBUG_PHL_RX
+		phl_info->rx_stats.rx_isr++;
+#endif
 #if defined(CONFIG_SDIO_HCI) && defined(CONFIG_PHL_SDIO_READ_RXFF_IN_INT)
 		phl_info->hci_trx_ops->recv_rxfifo(phl);
 #else
@@ -2295,7 +2298,7 @@ enum rtw_phl_status rtw_phl_msg_hub_register_recver(void* phl,
 	return phl_msg_hub_register_recver(phl, ctx, layer);
 }
 enum rtw_phl_status rtw_phl_msg_hub_update_recver_mask(void* phl,
-		enum phl_msg_recver_layer layer, u8* mdl_id, u32 len, u8 clr)
+		enum phl_msg_recver_layer layer, u8* mdl_id, u8 len, u8 clr)
 {
 	return phl_msg_hub_update_recver_mask(phl, layer, mdl_id, len, clr);
 }
@@ -2516,4 +2519,13 @@ rtw_phl_get_sta_mgnt_rssi(struct rtw_phl_stainfo_t *psta)
 	}
 
 	return ret;
+}
+
+bool rtw_phl_get_wl_dis_val(void *phl, bool *blocked)
+{
+       struct phl_info_t *phl_info = (struct phl_info_t *)phl;
+       enum rtw_hal_status hstatus = RTW_HAL_STATUS_FAILURE;
+
+       hstatus = rtw_hal_get_wl_dis_val(phl_info->hal, blocked);
+       return (RTW_HAL_STATUS_SUCCESS == hstatus);
 }

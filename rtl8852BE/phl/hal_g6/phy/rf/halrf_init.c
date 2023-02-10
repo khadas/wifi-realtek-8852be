@@ -338,7 +338,7 @@ enum rtw_hal_status halrf_dm_init(void *rf_void)
 		halrf_wl_tx_power_control(rf, 0xffffffff);
 
 	halrf_fcs_init(rf);
-
+	halrf_rfmode_check_8852b(rf);
 	return hal_status;
 }
 

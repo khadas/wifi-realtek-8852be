@@ -23,6 +23,8 @@
 #ifdef RTW_WKARD_CORE_RSSI_V1
 #define CONFIG_RX_PSTS_PER_PKT
 #define CONFIG_SIGNAL_STAT_PROCESS
+/* #define DBG_RX_SIGNAL_DISPLAY_PROCESSING */
+/* #define DBG_RX_SIGNAL_DISPLAY_SSID_MONITORED "rtw-ap" */
 #endif
 
 #ifndef DBG_MEM_ALLOC
@@ -39,6 +41,8 @@
  * Work around Config
  */
 #define RTW_WKARD_DIS_PROBE_REQ_RPT_TO_HOSTAPD
+#define CONFIG_WKARD_ULMU
+#define CONFIG_WKARD_SUSPEND_DISINT
 
 /***** temporarily flag *******/
 /*
@@ -95,6 +99,7 @@
 	#define CONFIG_CFG80211_FORCE_COMPATIBLE_2_6_37_UNDER
 	/*#define CONFIG_DEBUG_CFG80211*/
 	#define CONFIG_SET_SCAN_DENY_TIMER
+	/*#define CONFIG_RFKILL_POLL*/
 #endif
 #define CONFIG_TX_AMSDU
 #ifdef CONFIG_TX_AMSDU
@@ -119,8 +124,11 @@
 #endif
 /*#define CONFIG_FILE_FWIMG*/
 
-/* #define CONFIG_XMIT_ACK */
+#define CONFIG_XMIT_ACK
 #ifdef CONFIG_XMIT_ACK
+	/*#define DBG_XMIT_ACK*/
+	#define RTW_WKARD_CCX_RPT_LIMIT_CTRL
+	#define CONFIG_PHL_DEFAULT_MGNT_Q_RPT_EN
 	#define CONFIG_ACTIVE_KEEP_ALIVE_CHECK
 #endif
 
@@ -145,11 +153,12 @@
 #endif
 
 #ifdef CONFIG_POWER_SAVE
-	/* #define CONFIG_RTW_IPS */
-	/* #define CONFIG_RTW_LPS */
+	#define CONFIG_RTW_IPS
+	#define CONFIG_RTW_LPS
 
 	#ifdef CONFIG_RTW_LPS
-		#define CONFIG_RTW_LPS_RFOFF
+		//#define CONFIG_RTW_LPS_RFOFF
+		//#define CONFIG_RTW_LPS_DEFAULT_OFF
 	#endif
 
 	#if defined(CONFIG_RTW_IPS) || defined(CONFIG_RTW_LPS)
@@ -300,8 +309,6 @@
 
 /* #define DBG_RX_DROP_FRAME */
 /* #define DBG_RX_SEQ */
-/* #define DBG_RX_SIGNAL_DISPLAY_PROCESSING */
-/* #define DBG_RX_SIGNAL_DISPLAY_SSID_MONITORED "jeff-ap" */
 
 /* #define DBG_ROAMING_TEST */
 
@@ -317,6 +324,8 @@
 
 #define CONFIG_PCI_BCN_POLLING
 //#define RTW_PHL_TEST_FPGA //For 8852A PCIE FPGA TEST
+
+#define CONFIG_DIS_DYN_RXBUF
 
 /* #define CONFIG_DMA_USE_COHERENT_MEM */
 
@@ -349,8 +358,22 @@
 #define CPU_ID_TX_PHL_0 1
 
 /*#define CONFIG_PHL_CPU_BALANCE_RX*/
+#ifndef CONFIG_PHL_CPU_BALANCE_RX
+#define CONFIG_PHL_CPU_BALANCE_RX_THREAD
+#endif
 #define CPU_ID_RX_CORE_0 2
 
+#endif
+
+/* Alignment to improve memcpy efficiency */
+/*#define CONFIG_RTW_RX_SKB_DATA_ALIGNMENT*/
+
+/* NEON mode to improve performance */
+#if defined(CONFIG_RTW_RX_SKB_DATA_ALIGNMENT) && defined(CONFIG_PHL_CPU_BALANCE)
+/*#define CONFIG_RTW_NEON_MODE*/
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0))
+#undef CONFIG_RTW_NEON_MODE
+#endif
 #endif
 
 #ifdef RTW_PHL_TEST_FPGA
@@ -413,3 +436,6 @@
 #include "autoconf_arm_9617b.h"
 #endif /* CONFIG_ARCH_CORTINA */
 
+#define CONFIG_SNR_RPT
+
+#define CONFIG_RESUME_CHANNEL

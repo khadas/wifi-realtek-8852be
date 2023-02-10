@@ -18,13 +18,13 @@
 /* core / phl common structrue */
 
 #ifdef CONFIG_PHL_REDUCE_MEM
-#define MAX_PHL_RING_ENTRY_NUM 512
+#define MAX_PHL_RING_ENTRY_NUM CORE_MAX_PHL_RING_ENTRY_NUM
 #else
 #define MAX_PHL_RING_ENTRY_NUM 4096
 #endif
 #define MAX_PHL_RING_CAT_NUM 10 /* 8 tid + 1 mgnt + 1 hiq*/
 #ifdef CONFIG_PHL_REDUCE_MEM
-#define MAX_PHL_RING_RX_PKT_NUM 1024
+#define MAX_PHL_RING_RX_PKT_NUM CORE_MAX_PHL_RING_RX_PKT_NUM
 #else
 #define MAX_PHL_RING_RX_PKT_NUM 8192
 #endif

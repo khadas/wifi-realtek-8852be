@@ -155,6 +155,10 @@ enum rtw_hal_status
 rtw_hal_rf_set_power(struct hal_info_t *hal_info, enum phl_phy_idx phy,
 				enum phl_pwr_table pwr_table);
 
+enum rtw_hal_status
+rtw_hal_rf_set_power_constraint(struct hal_info_t *hal_info, enum phl_phy_idx phy,
+					u16 mb);
+
 enum rtw_hal_status rtw_hal_rf_set_gain_offset(struct hal_info_t *hal_info, u8 cur_phy_idx,
 						s8 offset, u8 rf_path);
 

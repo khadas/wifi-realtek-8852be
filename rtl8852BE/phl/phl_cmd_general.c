@@ -326,6 +326,10 @@ _phl_cmd_general_post_phase_msg_hdlr(struct phl_info_t *phl_info, void *dispr,
 		psts = phl_cmd_change_stainfo_hdl(phl_info, phl_cmd->buf);
 	break;
 
+	case MSG_EVT_TXPWR_SETUP:
+		psts = phl_cmd_txpwr_ctl_hdl(phl_info, phl_cmd->buf);
+		break;
+
 	default:
 		psts = RTW_PHL_STATUS_SUCCESS;
 	break;

@@ -2708,10 +2708,67 @@ static u8 is_drv_in_lps(_adapter *adapter)
 	return is_in_lps;
 }
 
+static void rtw_reset_snr_statistics(struct _ADAPTER *adapter)
+{
+	_list	*plist, *phead;
+	struct sta_info *psta = NULL;
+	u8 sta_mac[NUM_STA][ETH_ALEN] = {{0}};
+	uint mac_id[NUM_STA];
+	struct stainfo_stats	*pstats = NULL;
+	struct sta_priv	*pstapriv = &(adapter->stapriv);
+	u32 i, j, macid_rec_idx = 0;
+	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	u8 null_addr[ETH_ALEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+	struct mlme_priv *pmlmepriv = &(adapter->mlmepriv);
+	struct xmit_priv *pxmitpriv = &(adapter->xmitpriv);
+
+	_rtw_spinlock_bh(&pstapriv->sta_hash_lock);
+	for (i = 0; i < NUM_STA; i++) {
+		phead = &(pstapriv->sta_hash[i]);
+		plist = get_next(phead);
+		while ((rtw_end_of_queue_search(phead, plist)) == _FALSE) {
+			psta = LIST_CONTAINOR(plist, struct sta_info, hash_list);
+			plist = get_next(plist);
+
+			if (psta->phl_sta == NULL) {
+				RTW_WARN("%s: phl_sta is null\n", __func__);
+				continue;
+			}
+
+			if ((_rtw_memcmp(psta->phl_sta->mac_addr, bc_addr, 6) !=  _TRUE)
+				&& (_rtw_memcmp(psta->phl_sta->mac_addr, null_addr, 6) != _TRUE)
+				&& (_rtw_memcmp(psta->phl_sta->mac_addr, adapter_mac_addr(adapter), 6) != _TRUE)) {
+				_rtw_memcpy(&sta_mac[macid_rec_idx][0], psta->phl_sta->mac_addr, ETH_ALEN);
+				mac_id[macid_rec_idx] = psta->phl_sta->macid;
+				macid_rec_idx++;
+			}
+		}
+	}
+	_rtw_spinunlock_bh(&pstapriv->sta_hash_lock);
+
+	for (i = 0; i < macid_rec_idx; i++) {
+		psta = rtw_get_stainfo(pstapriv, &sta_mac[i][0]);
+		if(psta) {
+			_rtw_spinlock_bh(&psta->lock);
+			psta->snr_num = 0;
+			for ( i = 0; i < RTW_PHL_MAX_RF_PATH; i++) {
+				psta->snr_fd_total[i] = 0;
+				psta->snr_td_total[i] = 0;
+				psta->snr_fd_avg[i] = 0;
+				psta->snr_td_avg[i]= 0;
+			}
+			_rtw_spinunlock_bh(&psta->lock);
+		} else {
+			RTW_INFO("STA is gone\n");
+		}
+	}
+}
 void rtw_iface_dynamic_check_handlder(struct _ADAPTER *a)
 {
 	if (!a->netif_up)
 		return;
+	/* reset snr related information */
+	rtw_reset_snr_statistics(a);
 
 	#ifdef CONFIG_ACTIVE_KEEP_ALIVE_CHECK
 	#ifdef CONFIG_AP_MODE
@@ -3817,11 +3874,11 @@ int rtw_cached_pmkid(_adapter *adapter, u8 *bssid)
 	return SecIsInPMKIDList(adapter, bssid);
 }
 
-int rtw_rsn_sync_pmkid(_adapter *adapter, u8 *ie, uint ie_len, int i_ent)
+int rtw_pmkid_sync_rsn(_adapter *adapter, u8 *ie, uint ie_len, int i_ent)
 {
+	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 	struct security_priv *sec = &adapter->securitypriv;
 	struct rsne_info info;
-	u8 gm_cs[4];
 	int i;
 
 	rtw_rsne_info_parse(ie, ie_len, &info);
@@ -3841,39 +3898,26 @@ int rtw_rsn_sync_pmkid(_adapter *adapter, u8 *ie, uint ie_len, int i_ent)
 		goto exit;
 	}
 
-	/* bakcup group mgmt cs */
-	if (info.gmcs)
-		_rtw_memcpy(gm_cs, info.gmcs, 4);
-
-	if (info.pmkid_cnt) {
-		RTW_INFO(FUNC_ADPT_FMT" remove original PMKID, count:%u\n"
-			 , FUNC_ADPT_ARG(adapter), info.pmkid_cnt);
+	if (info.pmkid_cnt && pmlmepriv->assoc_by_bssid) {
+		RTW_INFO(FUNC_ADPT_FMT " update PMKID list, count:%u\n", FUNC_ADPT_ARG(adapter), info.pmkid_cnt);
 		for (i = 0; i < info.pmkid_cnt; i++)
-			RTW_INFO("    "KEY_FMT"\n", KEY_ARG(info.pmkid_list + i * 16));
+			RTW_INFO("    " KEY_FMT "\n", KEY_ARG(info.pmkid_list + i * 16));
+
+		/* add to pmkid catch */
+		_rtw_memcpy(sec->PMKIDList[sec->PMKIDIndex].Bssid, pmlmepriv->assoc_bssid, ETH_ALEN);
+		_rtw_memcpy(sec->PMKIDList[sec->PMKIDIndex].PMKID, info.pmkid_list, WLAN_PMKID_LEN);
+
+		sec->PMKIDList[sec->PMKIDIndex].bUsed = _TRUE;
+		sec->PMKIDIndex++;
+		if (sec->PMKIDIndex == 16)
+			sec->PMKIDIndex = 0;
+	} else if (i_ent >= 0) {
+		RTW_INFO(FUNC_ADPT_FMT " remove PMKID list", FUNC_ADPT_ARG(adapter));
+		/* remove pmkid catch in list */
+		_rtw_memset(sec->PMKIDList[i_ent].Bssid, 0x00, ETH_ALEN);
+		_rtw_memset(sec->PMKIDList[i_ent].PMKID, 0x00, WLAN_PMKID_LEN);
+		sec->PMKIDList[i_ent].bUsed = _FALSE;
 	}
-
-	if (i_ent >= 0) {
-		RTW_INFO(FUNC_ADPT_FMT" append PMKID:"KEY_FMT"\n"
-			, FUNC_ADPT_ARG(adapter), KEY_ARG(sec->PMKIDList[i_ent].PMKID));
-
-		info.pmkid_cnt = 1; /* update new pmkid_cnt */
-		_rtw_memcpy(info.pmkid_list, sec->PMKIDList[i_ent].PMKID, 16);
-	} else
-		info.pmkid_cnt = 0; /* update new pmkid_cnt */
-
-	RTW_PUT_LE16(info.pmkid_list - 2, info.pmkid_cnt);
-	if (info.gmcs)
-		_rtw_memcpy(info.pmkid_list + 16 * info.pmkid_cnt, gm_cs, 4);
-
-	ie_len = 1 + 1 + 2 + 4
-		+ 2 + 4 * info.pcs_cnt
-		+ 2 + 4 * info.akm_cnt
-		+ 2
-		+ 2 + 16 * info.pmkid_cnt
-		+ (info.gmcs ? 4 : 0)
-		;
-	
-	ie[1] = (u8)(ie_len - 2);
 
 exit:
 	return ie_len;
@@ -3915,11 +3959,10 @@ sint rtw_restruct_sec_ie(_adapter *adapter, u8 *out_ie)
 
 	if (authmode == WLAN_EID_RSN) {
 		iEntry = SecIsInPMKIDList(adapter, pmlmepriv->assoc_bssid);
-		ielength = rtw_rsn_sync_pmkid(adapter, out_ie, ielength, iEntry);
+		ielength = rtw_pmkid_sync_rsn(adapter, out_ie, ielength, iEntry);
 	}
 
-	if ((psecuritypriv->auth_type == MLME_AUTHTYPE_SAE) &&
-		(psecuritypriv->rsnx_ie_len >= 3)) {
+	if ((psecuritypriv->rsnx_ie_len >= 3)) {
 		u8 *_pos = out_ie + \
 			(psecuritypriv->supplicant_ie[1] + 2);
 		_rtw_memcpy(_pos, psecuritypriv->rsnx_ie,

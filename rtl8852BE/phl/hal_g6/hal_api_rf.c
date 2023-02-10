@@ -612,6 +612,18 @@ rtw_hal_rf_set_power(struct hal_info_t *hal_info, enum phl_phy_idx phy,
 	return hal_status;
 }
 
+enum rtw_hal_status
+rtw_hal_rf_set_power_constraint(struct hal_info_t *hal_info, enum phl_phy_idx phy,
+					u16 mb)
+{
+	enum rtw_hal_status hal_status = RTW_HAL_STATUS_SUCCESS;
+
+	/* here we choose to have software configuration only */
+	halrf_set_power_constraint(hal_info->rf, phy, mb, false);
+
+	return hal_status;
+}
+
 enum rtw_hal_status rtw_hal_rf_set_gain_offset(struct hal_info_t *hal_info, u8 cur_phy_idx,
 						s8 offset, u8 rf_path)
 {
@@ -1127,6 +1139,13 @@ enum rtw_hal_status rtw_hal_rf_watchdog(struct hal_info_t *hal_info)
 enum rtw_hal_status
 rtw_hal_rf_set_power(struct hal_info_t *hal_info, enum phl_phy_idx phy,
 					enum phl_pwr_table pwr_table)
+{
+	return RTW_HAL_STATUS_SUCCESS;
+}
+
+enum rtw_hal_status
+rtw_hal_rf_set_power_constraint(struct hal_info_t *hal_info, enum phl_phy_idx phy,
+					u16 mb)
 {
 	return RTW_HAL_STATUS_SUCCESS;
 }

@@ -560,15 +560,15 @@ void set_msg_bitmap(struct cmd_dispatcher *obj, struct phl_dispr_msg_ex *ex, u8 
 	/* ensure mandatory & wifi role module recv all msg*/
 	_os_mem_cpy(d, ex->premap, obj->bitmap, MODL_MASK_LEN);
 	_os_mem_cpy(d, ex->postmap, obj->bitmap, MODL_MASK_LEN);
-	if(_chk_bitmap_bit(obj->bitmap, mdl_id)) {
-		_add_bitmap_bit(ex->premap, &mdl_id, 1);
-		_add_bitmap_bit(ex->postmap, &mdl_id, 1);
+	if(_chk_bitmap_bit(obj->bitmap, MODL_MASK_LEN, mdl_id)) {
+		_add_bitmap_bit(ex->premap, MODL_MASK_LEN, &mdl_id, 1);
+		_add_bitmap_bit(ex->postmap, MODL_MASK_LEN, &mdl_id, 1);
 	}
 //_print_bitmap(ex->premap);
 }
 
-void set_msg_custom_bitmap(struct cmd_dispatcher *obj, struct phl_dispr_msg_ex *ex,
-		    enum phl_msg_opt opt, u8 *id_arr, u32 len, u8 mdl_id)
+static void set_msg_custom_bitmap(struct cmd_dispatcher *obj, struct phl_dispr_msg_ex *ex,
+		    enum phl_msg_opt opt, u8 *id_arr, u8 len, u8 mdl_id)
 {
 	void *d = phl_to_drvpriv(obj->phl_info);
 
@@ -577,15 +577,15 @@ void set_msg_custom_bitmap(struct cmd_dispatcher *obj, struct phl_dispr_msg_ex *
 		_os_mem_cpy(d, ex->postmap, obj->basemap, MODL_MASK_LEN);
 	}
 	if (opt & MSG_OPT_BLIST_PRESENT) {
-		_clr_bitmap_bit(ex->premap, id_arr, len);
-		_clr_bitmap_bit(ex->postmap, id_arr, len);
+		_clr_bitmap_bit(ex->premap, MODL_MASK_LEN, id_arr, len);
+		_clr_bitmap_bit(ex->postmap, MODL_MASK_LEN, id_arr, len);
 	} else {
-		_add_bitmap_bit(ex->premap, id_arr, len);
-		_add_bitmap_bit(ex->postmap, id_arr, len);
+		_add_bitmap_bit(ex->premap, MODL_MASK_LEN, id_arr, len);
+		_add_bitmap_bit(ex->postmap, MODL_MASK_LEN, id_arr, len);
 	}
-	if(_chk_bitmap_bit(obj->bitmap, mdl_id)) {
-		_add_bitmap_bit(ex->premap, &mdl_id, 1);
-		_add_bitmap_bit(ex->postmap, &mdl_id, 1);
+	if(_chk_bitmap_bit(obj->bitmap, MODL_MASK_LEN, mdl_id)) {
+		_add_bitmap_bit(ex->premap, MODL_MASK_LEN, &mdl_id, 1);
+		_add_bitmap_bit(ex->postmap, MODL_MASK_LEN, &mdl_id, 1);
 	}
 }
 
@@ -1015,7 +1015,9 @@ void notify_msg_fail(struct cmd_dispatcher *obj,
 		SET_MSG_INDC_FIELD(ex->msg.msg_id, MSG_INDC_CANNOT_IO);
 
 	if (TEST_STATUS_FLAG(ex->status, MSG_STATUS_OWNER_BK_MDL) &&
-	   (IS_DISPR_CTRL(MSG_MDL_ID_FIELD(ex->msg.msg_id)) || _chk_bitmap_bit(obj->bitmap, ex->module->id))) {
+	   (IS_DISPR_CTRL(MSG_MDL_ID_FIELD(ex->msg.msg_id)) ||
+	    _chk_bitmap_bit(obj->bitmap, MODL_MASK_LEN, ex->module->id))) {
+
 		ex->module->ops.msg_hdlr(obj, ex->module->priv, &(ex->msg));
 	}
 
@@ -1047,7 +1049,7 @@ enum phl_mdl_ret_code feed_mdl_msg(struct cmd_dispatcher *obj,
 			bitmap = ex->premap;
 		else
 			bitmap = ex->postmap;
-		_clr_bitmap_bit(bitmap, &(mdl->id), 1);
+		_clr_bitmap_bit(bitmap, MODL_MASK_LEN, &(mdl->id), 1);
 	}
 	return ret;
 }
@@ -1072,7 +1074,7 @@ void msg_pre_phase_hdl(struct cmd_dispatcher *obj, struct phl_dispr_msg_ex *ex)
 		if (STOP_DISPATCH_MSG(ret))
 			return;
 #endif
-		if (priority == i && _chk_bitmap_bit(ex->premap, owner_id)) {
+		if (priority == i && _chk_bitmap_bit(ex->premap, MODL_MASK_LEN, owner_id)) {
 			ret = feed_mdl_msg(obj, ex->module, ex);
 			if (STOP_DISPATCH_MSG(ret))
 				return;
@@ -1084,7 +1086,7 @@ void msg_pre_phase_hdl(struct cmd_dispatcher *obj, struct phl_dispr_msg_ex *ex)
 
 		do {
 			mdl = (struct phl_bk_module*)node;
-			if (!_chk_bitmap_bit(ex->premap, mdl->id) ||
+			if (!_chk_bitmap_bit(ex->premap, MODL_MASK_LEN, mdl->id) ||
 			    !TEST_STATUS_FLAG(mdl->status, MDL_STARTED))
 				continue;
 			ret = feed_mdl_msg(obj, mdl, ex);
@@ -1114,7 +1116,7 @@ void msg_post_phase_hdl(struct cmd_dispatcher *obj, struct phl_dispr_msg_ex *ex)
 		if (STOP_DISPATCH_MSG(ret))
 			return;
 #endif
-		if (priority == i && _chk_bitmap_bit(ex->postmap, owner_id)) {
+		if (priority == i && _chk_bitmap_bit(ex->postmap, MODL_MASK_LEN, owner_id)) {
 			ret = feed_mdl_msg(obj, ex->module, ex);
 			if (STOP_DISPATCH_MSG(ret))
 				return;
@@ -1124,7 +1126,7 @@ void msg_post_phase_hdl(struct cmd_dispatcher *obj, struct phl_dispr_msg_ex *ex)
 			continue;
 		do {
 			mdl = (struct phl_bk_module*)node;
-			if (!_chk_bitmap_bit(ex->postmap, mdl->id)||
+			if (!_chk_bitmap_bit(ex->postmap, MODL_MASK_LEN, mdl->id)||
 			    !TEST_STATUS_FLAG(mdl->status, MDL_STARTED))
 				continue;
 			ret = feed_mdl_msg(obj, mdl, ex);
@@ -1308,7 +1310,7 @@ u8 get_module_by_id(struct cmd_dispatcher *obj, enum phl_module_id id,
 		return true;
 	}
 
-	if (!_chk_bitmap_bit(obj->bitmap, id))
+	if (!_chk_bitmap_bit(obj->bitmap, MODL_MASK_LEN, id))
 		return false;
 
 	for (i = 0; i < PHL_MDL_PRI_MAX; i++) {
@@ -1547,7 +1549,7 @@ enum rtw_phl_status dispr_register_module(void *dispr,
 	if (!TEST_STATUS_FLAG(obj->status, DISPR_INIT)  ||
 	    priority == PHL_MDL_PRI_MAX ||
 	    chk_module_ops(ops) == false ||
-	    _chk_bitmap_bit(obj->bitmap, id) == true) {
+	    _chk_bitmap_bit(obj->bitmap, MODL_MASK_LEN, id) == true) {
 		PHL_TRACE(COMP_PHL_CMDDISP, _PHL_ERR_, "%s, register fail\n", __FUNCTION__);
 		return RTW_PHL_STATUS_FAILURE;
 	}
@@ -1566,9 +1568,9 @@ enum rtw_phl_status dispr_register_module(void *dispr,
 	if (ret == true && TEST_STATUS_FLAG(obj->status, DISPR_STARTED)) {
 		ret = bk_module_start(obj, module);
 		if (ret == true)
-			_add_bitmap_bit(obj->bitmap, &(module->id), 1);
+			_add_bitmap_bit(obj->bitmap, MODL_MASK_LEN, &(module->id), 1);
 		if (ret == true && priority != PHL_MDL_PRI_OPTIONAL)
-			_add_bitmap_bit(obj->basemap, &(module->id), 1);
+			_add_bitmap_bit(obj->basemap, MODL_MASK_LEN, &(module->id), 1);
 	}
 	PHL_TRACE(COMP_PHL_CMDDISP, _PHL_INFO_, "%s id:%d, ret:%d\n",__FUNCTION__, id, ret);
 	if (ret == true) {
@@ -1598,8 +1600,8 @@ enum rtw_phl_status dispr_deregister_module(void *dispr,
 
 	if(pq_search_node(d, &(obj->module_q[priority]), &mdl, _bh, true, &id, search_mdl)) {
 		module = (struct phl_bk_module *)mdl;
-		_clr_bitmap_bit(obj->bitmap, &(module->id), 1);
-		_clr_bitmap_bit(obj->basemap, &(module->id), 1);
+		_clr_bitmap_bit(obj->bitmap, MODL_MASK_LEN, &(module->id), 1);
+		_clr_bitmap_bit(obj->basemap, MODL_MASK_LEN, &(module->id), 1);
 		bk_module_stop(obj, module);
 		bk_module_deinit(obj, module);
 		_os_mem_free(d, module, sizeof(struct phl_bk_module));
@@ -1670,9 +1672,9 @@ enum rtw_phl_status dispr_module_start(void *dispr)
 			module = (struct phl_bk_module*)mdl;
 			ret = bk_module_start(obj, module);
 			if (ret == true)
-				_add_bitmap_bit(obj->bitmap, &(module->id), 1);
+				_add_bitmap_bit(obj->bitmap, MODL_MASK_LEN, &(module->id), 1);
 			if (ret == true && i != PHL_MDL_PRI_OPTIONAL)
-				_add_bitmap_bit(obj->basemap, &(module->id), 1);
+				_add_bitmap_bit(obj->basemap, MODL_MASK_LEN, &(module->id), 1);
 		} while(pq_get_next(d, &(obj->module_q[i]), mdl, &mdl, _bh));
 	}
 	PHL_TRACE(COMP_PHL_CMDDISP, _PHL_INFO_, "%s\n", __FUNCTION__);
@@ -1696,8 +1698,8 @@ enum rtw_phl_status dispr_module_stop(void *dispr)
 			continue;
 		do {
 			module = (struct phl_bk_module *)mdl;
-			_clr_bitmap_bit(obj->bitmap, &(module->id), 1);
-			_clr_bitmap_bit(obj->basemap, &(module->id), 1);
+			_clr_bitmap_bit(obj->bitmap, MODL_MASK_LEN, &(module->id), 1);
+			_clr_bitmap_bit(obj->basemap, MODL_MASK_LEN, &(module->id), 1);
 			bk_module_stop(obj, module);
 		} while(pq_get_next(d, &(obj->module_q[i]), mdl, &mdl, _bh));
 	}
@@ -1801,7 +1803,7 @@ dispr_get_bk_module_handle(void *dispr,
 	if (!TEST_STATUS_FLAG(obj->status, DISPR_INIT) ||
 	    handle == NULL ||
 	    priority == PHL_MDL_PRI_MAX ||
-	    !_chk_bitmap_bit(obj->bitmap, id))
+	    !_chk_bitmap_bit(obj->bitmap, MODL_MASK_LEN, id))
 		return phl_stat;
 
 	(*handle) = NULL;
@@ -1864,7 +1866,7 @@ dispr_set_src_info(void *dispr,
 	u8 cur_req_id = get_cur_cmd_req_id(obj, NULL);
 
 	if (!TEST_STATUS_FLAG(obj->status, DISPR_INIT) ||
-	    (!_chk_bitmap_bit(obj->bitmap, id) &&
+	    (!_chk_bitmap_bit(obj->bitmap, MODL_MASK_LEN, id) &&
 	    cur_req_id != id))
 		return phl_stat;
 
@@ -1896,7 +1898,7 @@ dispr_query_src_info(void *dispr,
 	u8 cur_req_id = get_cur_cmd_req_id(obj, NULL);
 
 	if (!TEST_STATUS_FLAG(obj->status, DISPR_INIT) ||
-	    (!_chk_bitmap_bit(obj->bitmap, id) &&
+	    (!_chk_bitmap_bit(obj->bitmap, MODL_MASK_LEN, id) &&
 	    cur_req_id != id))
 		return phl_stat;
 
@@ -1946,9 +1948,9 @@ dispr_send_msg(void *dispr,
 	}
 
 	if (!IS_DISPR_CTRL(module_id) &&
-	    !_chk_bitmap_bit(obj->bitmap, module_id) &&
+	    !_chk_bitmap_bit(obj->bitmap, MODL_MASK_LEN, module_id) &&
 	    ((cur_req_id != PHL_MDL_ID_MAX  && cur_req_id != module_id) ||
-	     (cur_req_id == PHL_MDL_ID_MAX && req_status == 0)||
+	     (cur_req_id == PHL_MDL_ID_MAX && req_status == 0) ||
 	     (cur_req_id == PHL_MDL_ID_MAX && !TEST_STATUS_FLAG(req_status,REQ_STATUS_LAST_PERMIT)))) {
 		PHL_TRACE(COMP_PHL_CMDDISP, _PHL_ERR_,
 			"%s module not allow to send\n", __FUNCTION__);
@@ -2367,7 +2369,7 @@ enum phl_mdl_ret_code loop_through_map(struct cmd_dispatcher *obj, struct phl_di
 			continue;
 		}
 		mdl = (struct phl_bk_module *)GET_MDL_HANDLE(obj, map->id_arr[i]);
-		if (mdl == NULL || !_chk_bitmap_bit(bitmap, mdl->id))
+		if (mdl == NULL || !_chk_bitmap_bit(bitmap, MODL_MASK_LEN, mdl->id))
 			continue;
 		/*only allow sequence rearrange for modules at the same priority*/
 		if ( _get_mdl_priority(mdl->id) != priority)

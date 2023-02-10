@@ -65,8 +65,8 @@ enum lock_type {
 
 	#define BUG_ON
 
-	#define PCI_DMA_TODEVICE 0
-	#define PCI_DMA_FROMDEVICE 1
+	#define DMA_TO_DEVICE 0
+	#define DMA_FROM_DEVICE 1
 #endif /*#ifndef PHL_PLATFORM_LINUX*/
 
 
@@ -100,6 +100,15 @@ enum lock_type {
 
 #elif defined(PHL_PLATFORM_LINUX)
 	typedef struct rtw_timer_list _os_timer;
+
+	/* taskletw is wrapper for callback function prototype is void (*func)(void *) */
+	typedef struct rtw_taskletw _taskletw;
+	struct rtw_taskletw {
+		struct tasklet_struct tasklet;
+		void (*func)(void *);
+		void *data;
+	};
+
 	#define _os_lock _lock
 	#define _os_mutex _mutex
 	#define _os_sema _sema
@@ -120,7 +129,7 @@ enum lock_type {
 	#define _os_warn_on(_cond) rtw_warn_on(_cond)
 	#define _dma dma_addr_t
 
-	#define _os_tasklet _tasklet
+	#define _os_tasklet _taskletw
 	#define _os_thread struct thread_hdl
 #ifdef CONFIG_PHL_CPU_BALANCE
 	#define _os_workitem _workitem_cpu
@@ -210,6 +219,8 @@ struct _os_handler {
 		_os_workitem	workitem;
 		_os_thread thread;
 	} u;
+	_os_sema hdlr_sema;
+	bool hdlr_created;
 };
 
 #ifndef PHL_PLATFORM_LINUX

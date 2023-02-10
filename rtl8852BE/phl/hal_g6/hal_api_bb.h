@@ -14,7 +14,6 @@
  *****************************************************************************/
 #ifndef _HAL_API_BB_H_
 #define _HAL_API_BB_H_
-enum phl_phy_idx rtw_hal_bb_band_to_phy_idx(struct rtw_hal_com_t *hal_com, u8 band_idx);
 void rtw_hal_bb_dfs_en(struct hal_info_t *hal_info, bool en);
 void rtw_hal_bb_tssi_cont_en(struct hal_info_t *hal_info, bool en, enum rf_path path);
 void rtw_hal_bb_adc_en(struct hal_info_t *hal_info,bool en);

@@ -1519,6 +1519,8 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, struct ieee_pa
 
 	if (psecuritypriv->dot11AuthAlgrthm == dot11AuthAlgrthm_8021X && psta) { /* psk/802_1x */
 		if (param->u.crypt.set_tx == 1) {
+			u8 iv[IV_LENGTH];
+
 			/* pairwise key */
 			if (param->u.crypt.key_len == 32)
 				_rtw_memcpy(psta->dot118021x_UncstKey.skey,
@@ -1584,6 +1586,15 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, struct ieee_pa
 
 			psta->dot11txpn.val = RTW_GET_LE64(param->u.crypt.seq);
 			psta->dot11rxpn.val = RTW_GET_LE64(param->u.crypt.seq);
+			if (rtw_pn_to_iv(param->u.crypt.seq,
+			    iv, param->u.crypt.idx,
+			    padapter->securitypriv.dot11PrivacyAlgrthm)) {
+				struct stainfo_rxcache *prxcache = &psta->sta_recvpriv.rxcache;
+				int i;
+
+				for (i = 0; i < RTW_MAX_TID_NUM; i++)
+					_rtw_memcpy(prxcache->iv[i], iv, IV_LENGTH);
+			}
 			psta->ieee8021x_blocked = _FALSE;
 
 			if (psta->dot118021XPrivacy != _NO_PRIVACY_) {
@@ -1805,6 +1816,8 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev, struct ieee_param
 					psta->dot118021XPrivacy = padapter->securitypriv.dot11PrivacyAlgrthm;
 
 				if (param->u.crypt.set_tx == 1) { /* pairwise key */
+					u8 iv[IV_LENGTH];
+
 					RTW_INFO(FUNC_ADPT_FMT" set %s PTK idx:%u, len:%u\n"
 						, FUNC_ADPT_ARG(padapter), param->u.crypt.alg, param->u.crypt.idx, param->u.crypt.key_len);
 
@@ -1827,6 +1840,15 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev, struct ieee_param
 					}
 					psta->dot11txpn.val = RTW_GET_LE64(param->u.crypt.seq);
 					psta->dot11rxpn.val = RTW_GET_LE64(param->u.crypt.seq);
+					if (rtw_pn_to_iv(param->u.crypt.seq,
+					    iv, param->u.crypt.idx,
+					    padapter->securitypriv.dot11PrivacyAlgrthm)) {
+						struct stainfo_rxcache *prxcache = &psta->sta_recvpriv.rxcache;
+						int i;
+
+						for (i = 0; i < RTW_MAX_TID_NUM; i++)
+							_rtw_memcpy(prxcache->iv[i], iv, IV_LENGTH);
+					}
 					psta->bpairwise_key_installed = _TRUE;
 					#ifdef CONFIG_RTW_80211R
 					psta->ft_pairwise_key_installed = _TRUE;
@@ -6576,7 +6598,7 @@ void rtw_cfg80211_external_auth_request(_adapter *padapter, union recv_frame *rf
 	freq = rtw_ch2freq(pmlmeext->chandef.chan);
 
 #ifdef CONFIG_DEBUG_CFG80211
-	RTW_INFO(FUNC_ADPT_FMT": freq=%d channel=%d\n", FUNC_ADPT_ARG(padapter), freq, padapter_link->mlmeextpriv.chandef.chan);
+	RTW_INFO(FUNC_ADPT_FMT": freq=%d channel=%d\n", FUNC_ADPT_ARG(padapter), freq, pmlmeext->chandef.chan);
 #endif
 
 #if (KERNEL_VERSION(4, 17, 0) <= LINUX_VERSION_CODE) \
@@ -7332,7 +7354,6 @@ static s32 cfg80211_rtw_remain_on_channel(struct wiphy *wiphy,
 
 	rtw_cfg80211_set_is_roch(padapter, _TRUE);
 	pcfg80211_wdinfo->ro_ch_wdev = wdev;
-	pcfg80211_wdinfo->remain_on_ch_cookie = *cookie;
 	pcfg80211_wdinfo->duration = duration;
 	rtw_cfg80211_set_last_ro_ch_time(padapter);
 	_rtw_memcpy(&pcfg80211_wdinfo->remain_on_ch_channel, channel, sizeof(struct ieee80211_channel));
@@ -7361,7 +7382,6 @@ static s32 cfg80211_rtw_cancel_remain_on_channel(struct wiphy *wiphy,
 	s32 err = 0;
 	_adapter *padapter;
 	struct rtw_wdev_priv *pwdev_priv;
-	struct cfg80211_roch_info *pcfg80211_rochinfo;
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0))
 	#if defined(RTW_DEDICATED_P2P_DEVICE)
@@ -7387,14 +7407,13 @@ static s32 cfg80211_rtw_cancel_remain_on_channel(struct wiphy *wiphy,
 #endif
 
 	pwdev_priv = adapter_wdev_data(padapter);
-	pcfg80211_rochinfo = &padapter->cfg80211_rochinfo;
 
 	RTW_INFO(FUNC_ADPT_FMT"%s cookie:0x%llx\n"
 		, FUNC_ADPT_ARG(padapter), wdev == wiphy_to_pd_wdev(wiphy) ? " PD" : ""
 		, cookie);
 
 	if (rtw_cfg80211_get_is_roch(padapter) == _TRUE) {
-		rtw_scan_abort(padapter, 0);
+		rtw_scan_abort(padapter, 200);
 	}
 
 exit:
@@ -7432,7 +7451,6 @@ static int _cfg80211_rtw_mgmt_tx(_adapter *padapter, u8 tx_ch, u8 no_cck, const 
 	u8 u_ch = rtw_mi_get_union_chan(padapter);
 	u8 leave_op = 0;
 #ifdef CONFIG_P2P
-	struct cfg80211_roch_info *pcfg80211_rochinfo = &padapter->cfg80211_rochinfo;
 	#ifdef CONFIG_CONCURRENT_MODE
 	struct wifidirect_info *pwdinfo = &padapter->wdinfo;
 	#endif
@@ -10230,22 +10248,21 @@ void rtw_cfg80211_deinit_rfkill(struct wiphy *wiphy)
 
 static void cfg80211_rtw_rfkill_poll(struct wiphy *wiphy)
 {
-	_adapter *padapter = NULL;
+	bool status = _FALSE;
 	bool blocked = _FALSE;
-	u8 valid = 0;
-
-	padapter = wiphy_to_adapter(wiphy);
+	_adapter *padapter = wiphy_to_adapter(wiphy);
+	void *phl = GET_PHL_INFO(adapter_to_dvobj(padapter));
 
 	if (adapter_to_dvobj(padapter)->processing_dev_remove == _TRUE) {
 		/*RTW_INFO("cfg80211_rtw_rfkill_poll: device is removed!\n");*/
 		return;
 	}
 
-	blocked = rtw_hal_rfkill_poll(padapter, &valid);
-	/*RTW_INFO("cfg80211_rtw_rfkill_poll: valid=%d, blocked=%d\n",
-			valid, blocked);*/
+	status = rtw_phl_get_wl_dis_val(phl, &blocked);
+	/*RTW_INFO("cfg80211_rtw_rfkill_poll: blocked=%d, status=%d\n",
+			blocked, status);*/
 
-	if (valid)
+	if (status)
 		wiphy_rfkill_set_hw_state(wiphy, blocked);
 }
 #endif

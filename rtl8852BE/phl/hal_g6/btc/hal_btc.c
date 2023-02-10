@@ -373,7 +373,7 @@ static void _reset_btc_var(struct btc_t *btc, u8 type)
 		hal_mem_set(h, &btc->dm, 0, sizeof(struct btc_dm));
 		hal_mem_set(h, bt_linfo->rssi_state, 0, BTC_BT_RSSI_THMAX);
 
-		for (i = 0; i < MAX_WIFI_ROLE_NUMBER; i++)
+		for (i = 0; i < BTC_WL_MAX_ROLE_NUMBER; i++)
 			hal_mem_set(h, wl_linfo[i].rssi_state, 0,
 				    BTC_WL_RSSI_THMAX);
 
@@ -449,13 +449,13 @@ u8 _get_wl_role_idx(struct btc_t *btc, u8 role)
 	struct btc_wl_role_info *wl_rinfo = &btc->cx.wl.role_info;
 	u8 i, pid = 0;
 
-	for (i = 0; i < MAX_WIFI_ROLE_NUMBER; i++) {
+	for (i = 0; i < BTC_WL_MAX_ROLE_NUMBER; i++) {
 		if (wl_rinfo->active_role[i].role == role)
 			break;
 	}
 
 	pid = i;
-	return pid; /*cation: return MAX_WIFI_ROLE_NUMBER if role not found */
+	return pid; /*cation: return BTC_WL_MAX_ROLE_NUMBER if role not found */
 }
 
 void _set_wl_req_mac(struct btc_t *btc, u8 mac_id)
@@ -498,20 +498,20 @@ static void _update_wl_info(struct btc_t *btc)
 	struct btc_wl_dbcc_info *wl_dinfo = &wl->dbcc_info;
 	struct btc_wl_active_role *active_role = NULL;
 	struct rtw_hal_com_t *h = btc->hal;
-	struct rtw_chan_def cid_ch[MAX_WIFI_ROLE_NUMBER];
+	struct rtw_chan_def cid_ch[BTC_WL_MAX_ROLE_NUMBER];
 	u8 i, j, k, cnt_connect = 0, cnt_connecting = 0, cnt_active = 0;
 	u8 cnt_2g = 0, cnt_5g = 0, max_role_cnt = BTC_TDMA_WLROLE_MAX;
-	u8 cid_phy[MAX_WIFI_ROLE_NUMBER] = {0};
-	u8 cid_role[MAX_WIFI_ROLE_NUMBER] = {0};
+	u8 cid_phy[BTC_WL_MAX_ROLE_NUMBER] = {0};
+	u8 cid_role[BTC_WL_MAX_ROLE_NUMBER] = {0};
 	u8 dbcc_2g_phy = 0, dbcc_2g_cid = 0, dbcc_2g_role = 0;
 	u32 noa_duration = 0;
 	bool b2g = false, b5g = false, client_joined = false, noa_exist = false;
 
 	hal_mem_set(h, wl_rinfo, 0, sizeof(struct btc_wl_role_info));
 	hal_mem_set(h, wl_dinfo, 0, sizeof(struct btc_wl_dbcc_info));
-	hal_mem_set(h, cid_ch, 0, MAX_WIFI_ROLE_NUMBER * sizeof(struct rtw_chan_def));
+	hal_mem_set(h, cid_ch, 0, BTC_WL_MAX_ROLE_NUMBER * sizeof(struct rtw_chan_def));
 
-	for (i = 0; i < MAX_WIFI_ROLE_NUMBER; i++) {
+	for (i = 0; i < BTC_WL_MAX_ROLE_NUMBER; i++) {
 		/* check if role active? */
 		if (!wl_linfo[i].active || wl_linfo[i].phy >= HW_PHY_MAX)
 			continue;
@@ -1354,7 +1354,7 @@ static void _ntfy_role_info(struct btc_t *btc, u8 rid,
 
 	PHL_INFO("[BTC], %s(), role_id=%d, reason=%d\n", __func__, rid, reason);
 
-	if (rid >= MAX_WIFI_ROLE_NUMBER)
+	if (rid >= BTC_WL_MAX_ROLE_NUMBER)
 		return;
 
 	btc->dm.cnt_notify[BTC_NCNT_ROLE_INFO]++;
@@ -1571,7 +1571,7 @@ static void _ntfy_wl_sta(struct btc_t *btc, struct rtw_stats *phl_stats,
 	struct btc_wl_info *wl = &btc->cx.wl;
 	struct btc_dm *dm = &btc->dm;
 	struct btc_module *module = &btc->mdinfo;
-	struct btc_wl_stat_info w[MAX_WIFI_ROLE_NUMBER] = {0};
+	struct btc_wl_stat_info w[BTC_WL_MAX_ROLE_NUMBER] = {0};
 	struct btc_traffic *t = NULL, *link_info_t = NULL;
 	struct btc_wl_link_info *link_info = NULL;
 	struct rtw_phl_rainfo ra_info = {0};

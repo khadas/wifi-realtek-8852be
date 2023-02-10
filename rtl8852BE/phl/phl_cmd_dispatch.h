@@ -147,8 +147,9 @@ void dispr_share_thread_stop_post_hdl(void *dispr);
 enum rtw_phl_status dispr_set_dispatch_seq(void *dispr, struct phl_msg_attribute *attr,
 							struct msg_self_def_seq* seq);
 
-/*ollowing functions are called inside phl_cmd_dispatcher.c */
+/* following functions are called inside phl_cmd_dispatcher.c */
 #define IS_DISPR_CTRL(_mdl_id) ((_mdl_id) < PHL_BK_MDL_ROLE_START)
+
 #define disp_eng_is_solo_thread_mode(_phl) \
 	((_phl)->disp_eng.thread_mode == SOLO_THREAD_MODE)
 void disp_eng_notify_share_thread(struct phl_info_t *phl, void *dispr);

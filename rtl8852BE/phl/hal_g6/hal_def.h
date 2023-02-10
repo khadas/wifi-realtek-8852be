@@ -750,6 +750,7 @@ struct rtw_trx_stat {
 #ifdef CONFIG_PCI_HCI
 	u32 ltr_tx_dly_count;
 	u32 ltr_last_tx_dly_time;
+	u32 rx_rdu_cnt;
 #endif
 	u16 rx_rate;
 	u8 rx_bw;
@@ -989,6 +990,7 @@ struct rtw_tpu_info { /*TX Power Unit (TPU)*/
 	bool pwr_lmt_en;
 	u8 tx_ptrn_shap_idx;
 	u8 tx_ptrn_shap_idx_cck;
+	u16 pwr_constraint_mb;
 };
 
 struct rtw_hal_stat_info {

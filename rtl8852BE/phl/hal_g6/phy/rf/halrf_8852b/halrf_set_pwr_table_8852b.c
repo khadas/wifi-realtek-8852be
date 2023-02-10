@@ -987,6 +987,7 @@ bool _halrf_set_power_8852b(struct rf_info *rf, enum phl_phy_idx phy,
 			}
 		}
 
+		halrf_modify_pwr_table_bitmask(rf, phy, pwr_table);
 		halrf_mac_write_pwr_by_rate_reg(rf, phy);
 		halrf_mac_write_pwr_ofst_mode(rf, phy);
 
@@ -1005,6 +1006,7 @@ bool _halrf_set_power_8852b(struct rf_info *rf, enum phl_phy_idx phy,
 			return false;
 		}
 
+		halrf_modify_pwr_table_bitmask(rf, phy, pwr_table);
 		halrf_mac_write_pwr_limit_reg(rf, phy);
 
 		if (rf->dbg_component & DBG_RF_POWER) {
@@ -1022,6 +1024,7 @@ bool _halrf_set_power_8852b(struct rf_info *rf, enum phl_phy_idx phy,
 			return false;
 		}
 
+		halrf_modify_pwr_table_bitmask(rf, phy, pwr_table);
 		halrf_mac_write_pwr_limit_rua_reg(rf, phy);
 
 		if (rf->dbg_component & DBG_RF_POWER) {
@@ -1089,6 +1092,7 @@ void halrf_pwr_by_rate_info_8852b(struct rf_info *rf,
 	u32 reg_tmp, cck_ref, ofdm_ref;
 	s32 s_cck_ref, s_ofdm_ref;
 	s32 int_tmp[2], float_tmp[2];
+	u32 power_constraint = pwr->power_constraint[0];
 
 	u32 used = *_used;
 	u32 out_len = *_out_len;
@@ -1129,114 +1133,206 @@ void halrf_pwr_by_rate_info_8852b(struct rf_info *rf,
 		 (int_tmp[1] == 0 && s_ofdm_ref < 0) ? "-" : "",
 		 int_tmp[1], float_tmp[1]);
 
-	RF_DBG_CNSL(out_len, used, output + used, out_len - used, "1SS\n");
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %d.%ddB\n",
+		 "Power Constraint",
+		 power_constraint / 4, (((power_constraint * 10) / 4) % 10));
+
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, "1TX\n");
 
 	reg_tmp = halrf_mac_get_pwr_reg_8852b(rf, 0, 0xd2c0, 0xffffffff);
-	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-36s = %d.%d / %d.%d / %d.%d / %d.%d\n",
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-36s = %s%d.%d / %s%d.%d / %s%d.%d / %s%d.%d\n",
 		 "CCK 11M / 5.5M / 2M / 1M",
-		 ((reg_tmp & 0x7f000000) >> 24) / 2, ((reg_tmp & 0x7f000000) >> 24) * 10 / 2 % 10,
-		 ((reg_tmp & 0x7f0000) >> 16) / 2, ((reg_tmp & 0x7f0000) >> 16) * 10 / 2 % 10,
-		 ((reg_tmp & 0x7f00) >> 8) / 2, ((reg_tmp & 0x7f00) >> 8) * 10 / 2 % 10,
-		 (reg_tmp & 0x7f) / 2, (reg_tmp & 0x7f) * 10 / 2 % 10
+		 halrf_pwr_is_minus(rf, (reg_tmp & 0x7f000000) >> 24) ? "-" : "",
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f000000) >> 24) / 10,
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f000000) >> 24) % 10,
+		 halrf_pwr_is_minus(rf, (reg_tmp & 0x7f0000) >> 16) ? "-" : "",
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) / 10,
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) % 10,
+		 halrf_pwr_is_minus(rf, (reg_tmp & 0x7f00) >> 8) ? "-" : "",
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f00) >> 8) / 10,
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f00) >> 8) % 10,
+		 halrf_pwr_is_minus(rf, reg_tmp & 0x7f) ? "-" : "",
+		 halrf_show_pwr_table(rf, reg_tmp & 0x7f) / 10,
+		 halrf_show_pwr_table(rf, reg_tmp & 0x7f) % 10
 		 );
 
 	reg_tmp = halrf_mac_get_pwr_reg_8852b(rf, 0, 0xd2c4, 0xffffffff);
-	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-36s = %d.%d / %d.%d / %d.%d / %d.%d\n",
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-36s = %s%d.%d / %s%d.%d / %s%d.%d / %s%d.%d\n",
 		 "OFDM 18M / 12M / 9M / 6M",
-		 ((reg_tmp & 0x7f000000) >> 24) / 2, ((reg_tmp & 0x7f000000) >> 24) * 10 / 2 % 10,
-		 ((reg_tmp & 0x7f0000) >> 16) / 2, ((reg_tmp & 0x7f0000) >> 16) * 10 / 2 % 10,
-		 ((reg_tmp & 0x7f00) >> 8) / 2, ((reg_tmp & 0x7f00) >> 8) * 10 / 2 % 10,
-		 (reg_tmp & 0x7f) / 2, (reg_tmp & 0x7f) * 10 / 2 % 10
+		 halrf_pwr_is_minus(rf, (reg_tmp & 0x7f000000) >> 24) ? "-" : "",
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f000000) >> 24) / 10,
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f000000) >> 24) % 10,
+		 halrf_pwr_is_minus(rf, (reg_tmp & 0x7f0000) >> 16) ? "-" : "",
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) / 10,
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) % 10,
+		 halrf_pwr_is_minus(rf, (reg_tmp & 0x7f00) >> 8) ? "-" : "",
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f00) >> 8) / 10,
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f00) >> 8) % 10,
+		 halrf_pwr_is_minus(rf, reg_tmp & 0x7f) ? "-" : "",
+		 halrf_show_pwr_table(rf, reg_tmp & 0x7f) / 10,
+		 halrf_show_pwr_table(rf, reg_tmp & 0x7f) % 10
 		 );
 
 	reg_tmp = halrf_mac_get_pwr_reg_8852b(rf, 0, 0xd2c8, 0xffffffff);
-	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-36s = %d.%d / %d.%d / %d.%d / %d.%d\n",
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-36s = %s%d.%d / %s%d.%d / %s%d.%d / %s%d.%d\n",
 		 "OFDM 54M / 48M / 36M / 24M",
-		 ((reg_tmp & 0x7f000000) >> 24) / 2, ((reg_tmp & 0x7f000000) >> 24) * 10 / 2 % 10,
-		 ((reg_tmp & 0x7f0000) >> 16) / 2, ((reg_tmp & 0x7f0000) >> 16) * 10 / 2 % 10,
-		 ((reg_tmp & 0x7f00) >> 8) / 2, ((reg_tmp & 0x7f00) >> 8) * 10 / 2 % 10,
-		 (reg_tmp & 0x7f) / 2, (reg_tmp & 0x7f) * 10 / 2 % 10
+		 halrf_pwr_is_minus(rf, (reg_tmp & 0x7f000000) >> 24) ? "-" : "",
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f000000) >> 24) / 10,
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f000000) >> 24) % 10,
+		 halrf_pwr_is_minus(rf, (reg_tmp & 0x7f0000) >> 16) ? "-" : "",
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) / 10,
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) % 10,
+		 halrf_pwr_is_minus(rf, (reg_tmp & 0x7f00) >> 8) ? "-" : "",
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f00) >> 8) / 10,
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f00) >> 8) % 10,
+		 halrf_pwr_is_minus(rf, reg_tmp & 0x7f) ? "-" : "",
+		 halrf_show_pwr_table(rf, reg_tmp & 0x7f) / 10,
+		 halrf_show_pwr_table(rf, reg_tmp & 0x7f) % 10
 		 );
 
 	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-36s\n",
 		 "HT / VHT / HE");
 
 	reg_tmp = halrf_mac_get_pwr_reg_8852b(rf, 0, 0xd2cc, 0xffffffff);
-	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-36s = %d.%d / %d.%d / %d.%d / %d.%d\n",
-		 "MCS3 / MCS2 / MCS1 / MCS0",
-		((reg_tmp & 0x7f000000) >> 24) / 2, ((reg_tmp & 0x7f000000) >> 24) * 10 / 2 % 10,
-		 ((reg_tmp & 0x7f0000) >> 16) / 2, ((reg_tmp & 0x7f0000) >> 16) * 10 / 2 % 10,
-		 ((reg_tmp & 0x7f00) >> 8) / 2, ((reg_tmp & 0x7f00) >> 8) * 10 / 2 % 10,
-		 (reg_tmp & 0x7f) / 2, (reg_tmp & 0x7f) * 10 / 2 % 10
-		 );
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-36s = %s%d.%d / %s%d.%d / %s%d.%d / %s%d.%d\n",
+		"MCS3 / MCS2 / MCS1 / MCS0",
+		halrf_pwr_is_minus(rf, (reg_tmp & 0x7f000000) >> 24) ? "-" : "",
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f000000) >> 24) / 10,
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f000000) >> 24) % 10,
+		halrf_pwr_is_minus(rf, (reg_tmp & 0x7f0000) >> 16) ? "-" : "",
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) / 10,
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) % 10,
+		halrf_pwr_is_minus(rf, (reg_tmp & 0x7f00) >> 8) ? "-" : "",
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f00) >> 8) / 10,
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f00) >> 8) % 10,
+		halrf_pwr_is_minus(rf, reg_tmp & 0x7f) ? "-" : "",
+		halrf_show_pwr_table(rf, reg_tmp & 0x7f) / 10,
+		halrf_show_pwr_table(rf, reg_tmp & 0x7f) % 10
+		);
 
 	reg_tmp = halrf_mac_get_pwr_reg_8852b(rf, 0, 0xd2d0, 0xffffffff);
-	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-36s = %d.%d / %d.%d / %d.%d / %d.%d\n",
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-36s = %s%d.%d / %s%d.%d / %s%d.%d / %s%d.%d\n",
 		 "MCS7 / MCS6 / MCS5 / MCS4",
-		((reg_tmp & 0x7f000000) >> 24) / 2, ((reg_tmp & 0x7f000000) >> 24) * 10 / 2 % 10,
-		 ((reg_tmp & 0x7f0000) >> 16) / 2, ((reg_tmp & 0x7f0000) >> 16) * 10 / 2 % 10,
-		 ((reg_tmp & 0x7f00) >> 8) / 2, ((reg_tmp & 0x7f00) >> 8) * 10 / 2 % 10,
-		 (reg_tmp & 0x7f) / 2, (reg_tmp & 0x7f) * 10 / 2 % 10
-		 );
+		halrf_pwr_is_minus(rf, (reg_tmp & 0x7f000000) >> 24) ? "-" : "",
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f000000) >> 24) / 10,
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f000000) >> 24) % 10,
+		halrf_pwr_is_minus(rf, (reg_tmp & 0x7f0000) >> 16) ? "-" : "",
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) / 10,
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) % 10,
+		halrf_pwr_is_minus(rf, (reg_tmp & 0x7f00) >> 8) ? "-" : "",
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f00) >> 8) / 10,
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f00) >> 8) % 10,
+		halrf_pwr_is_minus(rf, reg_tmp & 0x7f) ? "-" : "",
+		halrf_show_pwr_table(rf, reg_tmp & 0x7f) / 10,
+		halrf_show_pwr_table(rf, reg_tmp & 0x7f) % 10
+		);
 
 	reg_tmp = halrf_mac_get_pwr_reg_8852b(rf, 0, 0xd2d4, 0xffffffff);
-	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-36s = %d.%d / %d.%d / %d.%d / %d.%d\n",
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-36s = %s%d.%d / %s%d.%d / %s%d.%d / %s%d.%d\n",
 		 "MCS11 / MCS10 / MCS9 / MCS8",
-		 ((reg_tmp & 0x7f000000) >> 24) / 2, ((reg_tmp & 0x7f000000) >> 24) * 10 / 2 % 10,
-		 ((reg_tmp & 0x7f0000) >> 16) / 2, ((reg_tmp & 0x7f0000) >> 16) * 10 / 2 % 10,
-		 ((reg_tmp & 0x7f00) >> 8) / 2, ((reg_tmp & 0x7f00) >> 8) * 10 / 2 % 10,
-		 (reg_tmp & 0x7f) / 2, (reg_tmp & 0x7f) * 10 / 2 % 10
+		 halrf_pwr_is_minus(rf, (reg_tmp & 0x7f000000) >> 24) ? "-" : "",
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f000000) >> 24) / 10,
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f000000) >> 24) % 10,
+		 halrf_pwr_is_minus(rf, (reg_tmp & 0x7f0000) >> 16) ? "-" : "",
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) / 10,
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) % 10,
+		 halrf_pwr_is_minus(rf, (reg_tmp & 0x7f00) >> 8) ? "-" : "",
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f00) >> 8) / 10,
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f00) >> 8) % 10,
+		 halrf_pwr_is_minus(rf, reg_tmp & 0x7f) ? "-" : "",
+		 halrf_show_pwr_table(rf, reg_tmp & 0x7f) / 10,
+		 halrf_show_pwr_table(rf, reg_tmp & 0x7f) % 10
 		 );
 
 	reg_tmp = halrf_mac_get_pwr_reg_8852b(rf, 0, 0xd2d8, 0xffffffff);
-	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-36s = %d.%d / %d.%d / %d.%d / %d.%d\n",
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-36s = %s%d.%d / %s%d.%d / %s%d.%d / %s%d.%d\n",
 		 "DCM MCS4 / MCS3 / MCS1 / MCS0",
-		((reg_tmp & 0x7f000000) >> 24) / 2, ((reg_tmp & 0x7f000000) >> 24) * 10 / 2 % 10,
-		 ((reg_tmp & 0x7f0000) >> 16) / 2, ((reg_tmp & 0x7f0000) >> 16) * 10 / 2 % 10,
-		 ((reg_tmp & 0x7f00) >> 8) / 2, ((reg_tmp & 0x7f00) >> 8) * 10 / 2 % 10,
-		 (reg_tmp & 0x7f) / 2, (reg_tmp & 0x7f) * 10 / 2 % 10
-		 );
+		halrf_pwr_is_minus(rf, (reg_tmp & 0x7f000000) >> 24) ? "-" : "",
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f000000) >> 24) / 10,
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f000000) >> 24) % 10,
+		halrf_pwr_is_minus(rf, (reg_tmp & 0x7f0000) >> 16) ? "-" : "",
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) / 10,
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) % 10,
+		halrf_pwr_is_minus(rf, (reg_tmp & 0x7f00) >> 8) ? "-" : "",
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f00) >> 8) / 10,
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f00) >> 8) % 10,
+		halrf_pwr_is_minus(rf, reg_tmp & 0x7f) ? "-" : "",
+		halrf_show_pwr_table(rf, reg_tmp & 0x7f) / 10,
+		halrf_show_pwr_table(rf, reg_tmp & 0x7f) % 10
+		);
 
-	RF_DBG_CNSL(out_len, used, output + used, out_len - used, "2SS\n");
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, "2TX\n");
 
 	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-36s\n",
 		 "HT / VHT / HE");
 
 	reg_tmp = halrf_mac_get_pwr_reg_8852b(rf, 0, 0xd2dc, 0xffffffff);
-	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-36s = %d.%d / %d.%d / %d.%d / %d.%d\n",
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-36s = %s%d.%d / %s%d.%d / %s%d.%d / %s%d.%d\n",
 		 "MCS3 / MCS2 / MCS1 / MCS0",
-		 ((reg_tmp & 0x7f000000) >> 24) / 2, ((reg_tmp & 0x7f000000) >> 24) * 10 / 2 % 10,
-		 ((reg_tmp & 0x7f0000) >> 16) / 2, ((reg_tmp & 0x7f0000) >> 16) * 10 / 2 % 10,
-		 ((reg_tmp & 0x7f00) >> 8) / 2, ((reg_tmp & 0x7f00) >> 8) * 10 / 2 % 10,
-		 (reg_tmp & 0x7f) / 2, (reg_tmp & 0x7f) * 10 / 2 % 10
+		 halrf_pwr_is_minus(rf, (reg_tmp & 0x7f000000) >> 24) ? "-" : "",
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f000000) >> 24) / 10,
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f000000) >> 24) % 10,
+		 halrf_pwr_is_minus(rf, (reg_tmp & 0x7f0000) >> 16) ? "-" : "",
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) / 10,
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) % 10,
+		 halrf_pwr_is_minus(rf, (reg_tmp & 0x7f00) >> 8) ? "-" : "",
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f00) >> 8) / 10,
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f00) >> 8) % 10,
+		 halrf_pwr_is_minus(rf, reg_tmp & 0x7f) ? "-" : "",
+		 halrf_show_pwr_table(rf, reg_tmp & 0x7f) / 10,
+		 halrf_show_pwr_table(rf, reg_tmp & 0x7f) % 10
 		 );
 
 	reg_tmp = halrf_mac_get_pwr_reg_8852b(rf, 0, 0xd2e0, 0xffffffff);
-	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-36s = %d.%d / %d.%d / %d.%d / %d.%d\n",
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-36s = %s%d.%d / %s%d.%d / %s%d.%d / %s%d.%d\n",
 		 "MCS7 / MCS6 / MCS5 / MCS4",
-		((reg_tmp & 0x7f000000) >> 24) / 2, ((reg_tmp & 0x7f000000) >> 24) * 10 / 2 % 10,
-		 ((reg_tmp & 0x7f0000) >> 16) / 2, ((reg_tmp & 0x7f0000) >> 16) * 10 / 2 % 10,
-		 ((reg_tmp & 0x7f00) >> 8) / 2, ((reg_tmp & 0x7f00) >> 8) * 10 / 2 % 10,
-		 (reg_tmp & 0x7f) / 2, (reg_tmp & 0x7f) * 10 / 2 % 10
-		 );
+		halrf_pwr_is_minus(rf, (reg_tmp & 0x7f000000) >> 24) ? "-" : "",
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f000000) >> 24) / 10,
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f000000) >> 24) % 10,
+		halrf_pwr_is_minus(rf, (reg_tmp & 0x7f0000) >> 16) ? "-" : "",
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) / 10,
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) % 10,
+		halrf_pwr_is_minus(rf, (reg_tmp & 0x7f00) >> 8) ? "-" : "",
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f00) >> 8) / 10,
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f00) >> 8) % 10,
+		halrf_pwr_is_minus(rf, reg_tmp & 0x7f) ? "-" : "",
+		halrf_show_pwr_table(rf, reg_tmp & 0x7f) / 10,
+		halrf_show_pwr_table(rf, reg_tmp & 0x7f) % 10
+		);
 
 	reg_tmp = halrf_mac_get_pwr_reg_8852b(rf, 0, 0xd2e4, 0xffffffff);
-	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-36s = %d.%d / %d.%d / %d.%d / %d.%d\n",
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-36s = %s%d.%d / %s%d.%d / %s%d.%d / %s%d.%d\n",
 		 "MCS11 / MCS10 / MCS9 / MCS8",
-		 ((reg_tmp & 0x7f000000) >> 24) / 2, ((reg_tmp & 0x7f000000) >> 24) * 10 / 2 % 10,
-		 ((reg_tmp & 0x7f0000) >> 16) / 2, ((reg_tmp & 0x7f0000) >> 16) * 10 / 2 % 10,
-		 ((reg_tmp & 0x7f00) >> 8) / 2, ((reg_tmp & 0x7f00) >> 8) * 10 / 2 % 10,
-		 (reg_tmp & 0x7f) / 2, (reg_tmp & 0x7f) * 10 / 2 % 10
+		 halrf_pwr_is_minus(rf, (reg_tmp & 0x7f000000) >> 24) ? "-" : "",
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f000000) >> 24) / 10,
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f000000) >> 24) % 10,
+		 halrf_pwr_is_minus(rf, (reg_tmp & 0x7f0000) >> 16) ? "-" : "",
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) / 10,
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) % 10,
+		 halrf_pwr_is_minus(rf, (reg_tmp & 0x7f00) >> 8) ? "-" : "",
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f00) >> 8) / 10,
+		 halrf_show_pwr_table(rf, (reg_tmp & 0x7f00) >> 8) % 10,
+		 halrf_pwr_is_minus(rf, reg_tmp & 0x7f) ? "-" : "",
+		 halrf_show_pwr_table(rf, reg_tmp & 0x7f) / 10,
+		 halrf_show_pwr_table(rf, reg_tmp & 0x7f) % 10
 		 );
 
 	reg_tmp = halrf_mac_get_pwr_reg_8852b(rf, 0, 0xd2e8, 0xffffffff);
-	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-36s = %d.%d / %d.%d / %d.%d / %d.%d\n",
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-36s = %s%d.%d / %s%d.%d / %s%d.%d / %s%d.%d\n",
 		 "DCM MCS4 / MCS3 / MCS1 / MCS0",
-		((reg_tmp & 0x7f000000) >> 24) / 2, ((reg_tmp & 0x7f000000) >> 24) * 10 / 2 % 10,
-		 ((reg_tmp & 0x7f0000) >> 16) / 2, ((reg_tmp & 0x7f0000) >> 16) * 10 / 2 % 10,
-		 ((reg_tmp & 0x7f00) >> 8) / 2, ((reg_tmp & 0x7f00) >> 8) * 10 / 2 % 10,
-		 (reg_tmp & 0x7f) / 2, (reg_tmp & 0x7f) * 10 / 2 % 10
-		 );
+		halrf_pwr_is_minus(rf, (reg_tmp & 0x7f000000) >> 24) ? "-" : "",
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f000000) >> 24) / 10,
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f000000) >> 24) % 10,
+		halrf_pwr_is_minus(rf, (reg_tmp & 0x7f0000) >> 16) ? "-" : "",
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) / 10,
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) % 10,
+		halrf_pwr_is_minus(rf, (reg_tmp & 0x7f00) >> 8) ? "-" : "",
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f00) >> 8) / 10,
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f00) >> 8) % 10,
+		halrf_pwr_is_minus(rf, reg_tmp & 0x7f) ? "-" : "",
+		halrf_show_pwr_table(rf, reg_tmp & 0x7f) / 10,
+		halrf_show_pwr_table(rf, reg_tmp & 0x7f) % 10
+		);
 
 	*_used = used;
 	*_out_len = out_len;
@@ -1253,6 +1349,7 @@ void halrf_pwr_limit_info_8852b(struct rf_info *rf,
 	u32 reg_tmp, cck_ref, ofdm_ref;
 	s32 s_cck_ref, s_ofdm_ref;
 	s32 int_tmp[2], float_tmp[2];
+	u32 power_constraint = pwr->power_constraint[0];
 
 	u32 used = *_used;
 	u32 out_len = *_out_len;
@@ -1290,6 +1387,10 @@ void halrf_pwr_limit_info_8852b(struct rf_info *rf,
 		 int_tmp[0], float_tmp[0],
 		 (int_tmp[1] == 0 && s_ofdm_ref < 0) ? "-" : "",
 		 int_tmp[1], float_tmp[1]);
+
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %d.%ddB\n",
+		 "Power Constraint",
+		 power_constraint / 4, (((power_constraint * 10) / 4) % 10));
 
 	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %s\n",
 		 "Power Limit (Reg)",
@@ -1312,59 +1413,91 @@ void halrf_pwr_limit_info_8852b(struct rf_info *rf,
 	RF_DBG_CNSL(out_len, used, output + used, out_len - used, "1SS\n");
 
 	reg_tmp = halrf_mac_get_pwr_reg_8852b(rf, 0, 0xd2ec, 0xffffffff);
-	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %d.%d\n",
-		 "CCK 20M NOBF", (reg_tmp & 0x7f) / 2, (reg_tmp & 0x7f) * 10 / 2 % 10);
-	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %d.%d\n",
-		 "CCK 40M NOBF", ((reg_tmp & 0x7f0000) >> 16) / 2,
-		 ((reg_tmp & 0x7f0000) >> 16) * 10 / 2 % 10);
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %s%d.%d\n",
+		"CCK 20M NOBF",
+		halrf_pwr_is_minus(rf, reg_tmp & 0x7f) ? "-" : "",
+		halrf_show_pwr_table(rf, reg_tmp & 0x7f) / 10,
+		halrf_show_pwr_table(rf, reg_tmp & 0x7f) % 10);
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %s%d.%d\n",
+		"CCK 40M NOBF",
+		halrf_pwr_is_minus(rf, (reg_tmp & 0x7f0000) >> 16) ? "-" : "",
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) / 10,
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) % 10);
 
 	reg_tmp = halrf_mac_get_pwr_reg_8852b(rf, 0, 0xd2f0, 0xffffffff);
-	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %d.%d\n",
-		 "OFDM NOBF", (reg_tmp & 0x7f) / 2, (reg_tmp & 0x7f) * 10 / 2 % 10);
-	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %d.%d\n",
-		 "HT 20M NOBF", ((reg_tmp & 0x7f0000) >> 16) / 2,
-		 ((reg_tmp & 0x7f0000) >> 16) * 10 / 2 % 10);
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %s%d.%d\n",
+		 "OFDM NOBF",
+		 halrf_pwr_is_minus(rf, reg_tmp & 0x7f) ? "-" : "",
+		 halrf_show_pwr_table(rf, reg_tmp & 0x7f) / 10,
+		 halrf_show_pwr_table(rf, reg_tmp & 0x7f) % 10);
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %s%d.%d\n",
+		"HT 20M NOBF",
+		halrf_pwr_is_minus(rf, (reg_tmp & 0x7f0000) >> 16) ? "-" : "",
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) / 10,
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) % 10);
 
 	reg_tmp = halrf_mac_get_pwr_reg_8852b(rf, 0, 0xd300, 0xffffffff);
-	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %d.%d\n",
-		 "HT 40M NOBF", ((reg_tmp & 0x7f0000) >> 16) / 2,
-		 ((reg_tmp & 0x7f0000) >> 16) * 10 / 2 % 10);
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %s%d.%d\n",
+		"HT 40M NOBF",
+		halrf_pwr_is_minus(rf, (reg_tmp & 0x7f0000) >> 16) ? "-" : "",
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) / 10,
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) % 10);
 
 	reg_tmp = halrf_mac_get_pwr_reg_8852b(rf, 0, 0xd308, 0xffffffff);
-	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %d.%d\n",
-		 "HT 80M NOBF", ((reg_tmp & 0x7f0000) >> 16) / 2,
-		 ((reg_tmp & 0x7f0000) >> 16) * 10 / 2 % 10);
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %s%d.%d\n",
+		"HT 80M NOBF",
+		halrf_pwr_is_minus(rf, (reg_tmp & 0x7f0000) >> 16) ? "-" : "",
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) / 10,
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) % 10);
 
 	RF_DBG_CNSL(out_len, used, output + used, out_len - used, "2SS\n");
 
 	reg_tmp = halrf_mac_get_pwr_reg_8852b(rf, 0, 0xd314, 0xffffffff);
-	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %d.%d\n",
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %s%d.%d\n",
 		 "CCK 20M NOBF",
-		 (reg_tmp & 0x7f) / 2, (reg_tmp & 0x7f) * 10 / 2 % 10);
-	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %d.%d\n",
-		 "CCK 40M NOBF",
-		 ((reg_tmp & 0x7f0000) >> 16) / 2, ((reg_tmp & 0x7f0000) >> 16) * 10 / 2 % 10);
+		 halrf_pwr_is_minus(rf, reg_tmp & 0x7f) ? "-" : "",
+		 halrf_show_pwr_table(rf, reg_tmp & 0x7f) / 10,
+		 halrf_show_pwr_table(rf, reg_tmp & 0x7f) % 10);
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %s%d.%d\n",
+		"CCK 40M NOBF",
+		halrf_pwr_is_minus(rf, (reg_tmp & 0x7f0000) >> 16) ? "-" : "",
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) / 10,
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) % 10);
 
 	reg_tmp = halrf_mac_get_pwr_reg_8852b(rf, 0, 0xd318, 0xffffffff);
-	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %d.%d\n",
-		 "OFDM NOBF",
-		 (reg_tmp & 0x7f) / 2, (reg_tmp & 0x7f) * 10 / 2 % 10);
-	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %d.%d / %d.%d\n",
-		 "HT 20M BF / NOBF",
-		 ((reg_tmp & 0x7f000000) >> 24) / 2, ((reg_tmp & 0x7f000000) >> 24) * 10 / 2 % 10,
-		 ((reg_tmp & 0x7f0000) >> 16) / 2, ((reg_tmp & 0x7f0000) >> 16) * 10 / 2 % 10);
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %s%d.%d\n",
+		"OFDM NOBF",
+		halrf_pwr_is_minus(rf, reg_tmp & 0x7f) ? "-" : "",
+		halrf_show_pwr_table(rf, reg_tmp & 0x7f) / 10,
+		halrf_show_pwr_table(rf, reg_tmp & 0x7f) % 10);
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %s%d.%d / %s%d.%d\n",
+		"HT 20M BF / NOBF",
+		halrf_pwr_is_minus(rf, (reg_tmp & 0x7f000000) >> 24) ? "-" : "",
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f000000) >> 24) / 10,
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f000000) >> 24) % 10,
+		halrf_pwr_is_minus(rf, (reg_tmp & 0x7f0000) >> 16) ? "-" : "",
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) / 10,
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) % 10);
 
 	reg_tmp = halrf_mac_get_pwr_reg_8852b(rf, 0, 0xd328, 0xffffffff);
-	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %d.%d / %d.%d\n",
-		 "HT 40M BF / NOBF",
-		 ((reg_tmp & 0x7f000000) >> 24) / 2, ((reg_tmp & 0x7f000000) >> 24) * 10 / 2 % 10,
-		 ((reg_tmp & 0x7f0000) >> 16) / 2, ((reg_tmp & 0x7f0000) >> 16) * 10 / 2 % 10);
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %s%d.%d / %s%d.%d\n",
+		"HT 40M BF / NOBF",
+		halrf_pwr_is_minus(rf, (reg_tmp & 0x7f000000) >> 24) ? "-" : "",
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f000000) >> 24) / 10,
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f000000) >> 24) % 10,
+		halrf_pwr_is_minus(rf, (reg_tmp & 0x7f0000) >> 16) ? "-" : "",
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) / 10,
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) % 10);
 
 	reg_tmp = halrf_mac_get_pwr_reg_8852b(rf, 0, 0xd330, 0xffffffff);
-	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %d.%d / %d.%d\n",
-		 "HT 80M BF / NOBF",
-		 ((reg_tmp & 0x7f000000) >> 24) / 2, ((reg_tmp & 0x7f000000) >> 24) * 10 / 2 % 10,
-		 ((reg_tmp & 0x7f0000) >> 16) / 2, ((reg_tmp & 0x7f0000) >> 16) * 10 / 2 % 10);
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %s%d.%d / %s%d.%d\n",
+		"HT 80M BF / NOBF",
+		halrf_pwr_is_minus(rf, (reg_tmp & 0x7f000000) >> 24) ? "-" : "",
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f000000) >> 24) / 10,
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f000000) >> 24) % 10,
+		halrf_pwr_is_minus(rf, (reg_tmp & 0x7f0000) >> 16) ? "-" : "",
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) / 10,
+		halrf_show_pwr_table(rf, (reg_tmp & 0x7f0000) >> 16) % 10);
 
 	*_used = used;
 	*_out_len = out_len;
@@ -1381,6 +1514,7 @@ void halrf_pwr_limit_ru_info_8852b(struct rf_info *rf,
 	u32 reg_tmp, cck_ref, ofdm_ref;
 	s32 s_cck_ref, s_ofdm_ref;
 	s32 int_tmp[2], float_tmp[2];
+	u32 power_constraint = pwr->power_constraint[0];
 
 	u32 used = *_used;
 	u32 out_len = *_out_len;
@@ -1419,6 +1553,10 @@ void halrf_pwr_limit_ru_info_8852b(struct rf_info *rf,
 		 (int_tmp[1] == 0 && s_ofdm_ref < 0) ? "-" : "",
 		 int_tmp[1], float_tmp[1]);
 
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %d.%ddB\n",
+		 "Power Constraint",
+		 power_constraint / 4, (((power_constraint * 10) / 4) % 10));
+
 	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %s\n",
 		 "Power Limit (Reg)",
 		 halrf_mac_get_pwr_reg_8852b(rf, 0, 0xd208, BIT(20)) ? "Enable Limit" : "Disable Limit");
@@ -1440,30 +1578,48 @@ void halrf_pwr_limit_ru_info_8852b(struct rf_info *rf,
 	RF_DBG_CNSL(out_len, used, output + used, out_len - used, "1SS\n");
 
 	reg_tmp = halrf_mac_get_pwr_reg_8852b(rf, 0, 0xd33c, 0xffffffff);
-	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %d.%d\n",
-		 "RU26", (reg_tmp & 0x7f) / 2, (reg_tmp & 0x7f) * 10 / 2 % 10);
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %s%d.%d\n",
+		"RU26",
+		halrf_pwr_is_minus(rf, reg_tmp & 0x7f) ? "-" : "",
+		halrf_show_pwr_table(rf, reg_tmp & 0x7f) / 10,
+		halrf_show_pwr_table(rf, reg_tmp & 0x7f) % 10);
 
 	reg_tmp = halrf_mac_get_pwr_reg_8852b(rf, 0, 0xd344, 0xffffffff);
-	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %d.%d\n",
-		 "RU52", (reg_tmp & 0x7f) / 2, (reg_tmp & 0x7f) * 10 / 2 % 10);
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %s%d.%d\n",
+		"RU52",
+		halrf_pwr_is_minus(rf, reg_tmp & 0x7f) ? "-" : "",
+		halrf_show_pwr_table(rf, reg_tmp & 0x7f) / 10,
+		halrf_show_pwr_table(rf, reg_tmp & 0x7f) % 10);
 
 	reg_tmp = halrf_mac_get_pwr_reg_8852b(rf, 0, 0xd34c, 0xffffffff);
-	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %d.%d\n",
-		 "RU106", (reg_tmp & 0x7f) / 2, (reg_tmp & 0x7f) * 10 / 2 % 10);
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %s%d.%d\n",
+		"RU106",
+		halrf_pwr_is_minus(rf, reg_tmp & 0x7f) ? "-" : "",
+		halrf_show_pwr_table(rf, reg_tmp & 0x7f) / 10,
+		halrf_show_pwr_table(rf, reg_tmp & 0x7f) % 10);
 
 	RF_DBG_CNSL(out_len, used, output + used, out_len - used, "2SS\n");
 
 	reg_tmp = halrf_mac_get_pwr_reg_8852b(rf, 0, 0xd354, 0xffffffff);
-	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %d.%d\n",
-		 "RU26", (reg_tmp & 0x7f) / 2, (reg_tmp & 0x7f) * 10 / 2 % 10);
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %s%d.%d\n",
+		"RU26",
+		halrf_pwr_is_minus(rf, reg_tmp & 0x7f) ? "-" : "",
+		halrf_show_pwr_table(rf, reg_tmp & 0x7f) / 10,
+		halrf_show_pwr_table(rf, reg_tmp & 0x7f) % 10);
 
 	reg_tmp = halrf_mac_get_pwr_reg_8852b(rf, 0, 0xd35c, 0xffffffff);
-	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %d.%d\n",
-		 "RU52", (reg_tmp & 0x7f) / 2, (reg_tmp & 0x7f) * 10 / 2 % 10);
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %s%d.%d\n",
+		"RU52",
+		halrf_pwr_is_minus(rf, reg_tmp & 0x7f) ? "-" : "",
+		halrf_show_pwr_table(rf, reg_tmp & 0x7f) / 10,
+		halrf_show_pwr_table(rf, reg_tmp & 0x7f) % 10);
 
 	reg_tmp = halrf_mac_get_pwr_reg_8852b(rf, 0, 0xd364, 0xffffffff);
-	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %d.%d\n",
-		 "RU106", (reg_tmp & 0x7f) / 2, (reg_tmp & 0x7f) * 10 / 2 % 10);
+	RF_DBG_CNSL(out_len, used, output + used, out_len - used, " %-30s = %s%d.%d\n",
+		"RU106",
+		halrf_pwr_is_minus(rf, reg_tmp & 0x7f) ? "-" : "",
+		halrf_show_pwr_table(rf, reg_tmp & 0x7f) / 10,
+		halrf_show_pwr_table(rf, reg_tmp & 0x7f) % 10);
 
 	*_used = used;
 	*_out_len = out_len;
@@ -1500,4 +1656,5 @@ void halrf_set_tx_shape_8852b(struct rf_info *rf, u8 tx_shape_idx)
 	else
 		pwr->set_tx_ptrn_shap_idx[PW_LMT_BAND_5G][TX_SHAPE_OFDM] = tx_shape_idx;
 }
+
 #endif	/*RF_8852B_SUPPORT*/

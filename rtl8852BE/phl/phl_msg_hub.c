@@ -133,7 +133,7 @@ void msg_forward(struct phl_info_t* phl, struct phl_msg_ex* ex)
 				_os_mem_set(d, recver, 0, sizeof(struct phl_msg_receiver_ex));
 			continue;
 		}
-		if(_chk_bitmap_bit(recver->bitmap, module_id)) {
+		if(_chk_bitmap_bit(recver->bitmap, MODL_MASK_LEN, module_id)) {
 			PHL_TRACE(COMP_PHL_DBG, _PHL_DEBUG_, "%s notify %d layer\n",
 				  __FUNCTION__, i);
 			recver->ctx.incoming_evt_notify(recver->ctx.priv,
@@ -315,7 +315,7 @@ enum rtw_phl_status phl_msg_hub_register_recver(void* phl,
 }
 
 enum rtw_phl_status phl_msg_hub_update_recver_mask(void* phl,
-		enum phl_msg_recver_layer layer, u8* mdl_id, u32 len, u8 clr)
+		enum phl_msg_recver_layer layer, u8* mdl_id, u8 len, u8 clr)
 {
 	struct phl_info_t* phl_info = (struct phl_info_t*)phl;
 	struct phl_msg_hub* hub = (struct phl_msg_hub*)phl_info->msg_hub;
@@ -331,9 +331,9 @@ enum rtw_phl_status phl_msg_hub_update_recver_mask(void* phl,
 	}
 
 	if(clr == true)
-		_clr_bitmap_bit(recver->bitmap, mdl_id, len);
+		_clr_bitmap_bit(recver->bitmap, MODL_MASK_LEN, mdl_id, len);
 	else
-		_add_bitmap_bit(recver->bitmap, mdl_id, len);
+		_add_bitmap_bit(recver->bitmap, MODL_MASK_LEN, mdl_id, len);
 	PHL_INFO(" %s\n",__FUNCTION__);
 	return RTW_PHL_STATUS_SUCCESS;
 }

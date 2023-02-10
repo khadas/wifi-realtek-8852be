@@ -285,7 +285,6 @@ struct cfg80211_roch_info {
 	enum nl80211_channel_type	remain_on_ch_type;
 	unsigned int duration;
 	ATOMIC_T ro_ch_cookie_gen;
-	u64 remain_on_ch_cookie;
 	bool is_ro_ch;
 	struct wireless_dev *ro_ch_wdev;
 	systime last_ro_ch_time; /* this will be updated at the beginning and end of ro_ch */
@@ -896,7 +895,7 @@ void rtw_indicate_scan_done(_adapter *padapter, bool aborted);
 u32 rtw_join_abort_timeout(_adapter *adapter, u32 timeout_ms);
 
 int rtw_cached_pmkid(_adapter *adapter, u8 *bssid);
-int rtw_rsn_sync_pmkid(_adapter *adapter, u8 *ie, uint ie_len, int i_ent);
+int rtw_pmkid_sync_rsn(_adapter *adapter, u8 *ie, uint ie_len, int i_ent);
 
 extern int rtw_restruct_sec_ie(_adapter *adapter, u8 *out_ie);
 #ifdef CONFIG_WMMPS_STA

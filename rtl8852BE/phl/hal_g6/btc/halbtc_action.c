@@ -302,7 +302,7 @@ static void _set_bt_afh_info(struct btc_t *btc)
 		bw = 0;
 		goto exit;
 	} else {
-		for (i = 0; i < MAX_WIFI_ROLE_NUMBER; i++) {
+		for (i = 0; i < BTC_WL_MAX_ROLE_NUMBER; i++) {
 			/* get p2p channel for MCC */
 			if (wl_rinfo->link_mode == BTC_WLINK_2G_MCC) {
 				if (wl_rinfo->active_role[i].role == PHL_RTYPE_AP ||
@@ -522,7 +522,7 @@ static void _set_halmac_tx_limit(struct btc_t *btc)
 
 	dm->wl_tx_limit.tx_1ss = tx_1ss_limit;
 
-	for (i = 0; i < MAX_WIFI_ROLE_NUMBER; i++) {
+	for (i = 0; i < BTC_WL_MAX_ROLE_NUMBER; i++) {
 
 		plink = &wl->link_info[i];
 
@@ -568,7 +568,7 @@ static void _set_halmac_tx_limit(struct btc_t *btc)
 	dm->wl_tx_limit.tx_time = tx_time;
 	dm->wl_tx_limit.tx_retry = tx_retry;
 
-	for (i = 0; i < MAX_WIFI_ROLE_NUMBER; i++) {
+	for (i = 0; i < BTC_WL_MAX_ROLE_NUMBER; i++) {
 
 		plink = &wl->link_info[i];
 
@@ -1988,7 +1988,7 @@ void _action_wl_2g_gc(struct btc_t *btc)
 
 	pid = _get_wl_role_idx(btc, PHL_RTYPE_P2P_GC);
 
-	if (pid < MAX_WIFI_ROLE_NUMBER) {
+	if (pid < BTC_WL_MAX_ROLE_NUMBER) {
 		noa = wl_rinfo->active_role[pid].noa;
 		noa_duration = wl_rinfo->active_role[pid].noa_duration;
 	}

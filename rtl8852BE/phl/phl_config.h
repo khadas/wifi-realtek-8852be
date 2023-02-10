@@ -75,6 +75,7 @@
 	#ifdef CONFIG_PCI_HCI
 		#define PCIE_TRX_MIT_EN
 	#endif
+	#define DEBUG_PHL_RX
 	#define CONFIG_PHL_P2PPS
 	#define CONFIG_6GHZ
 	#define RTW_WKARD_BFEE_SET_AID
@@ -101,6 +102,7 @@
 		#define CONFIG_CMD_DISP
 	#endif
 	*/
+	#define DEBUG_PHL_RX
 #endif
 
 /******************* Feature flags **************************/

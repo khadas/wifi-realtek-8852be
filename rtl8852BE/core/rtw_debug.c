@@ -264,14 +264,16 @@ void dump_drv_cfg(void *sel)
 #endif
 #ifdef CONFIG_RXBUF_NUM_1024
 	RTW_PRINT_SEL(sel, "CONFIG_RXBUF_NUM_1024\n");
+#elif defined (CONFIG_RXBUF_NUM_2048)
+	RTW_PRINT_SEL(sel, "CONFIG_RXBUF_NUM_2048\n");
 #endif
 #ifdef CONFIG_PHL_CPU_BALANCE
 	RTW_PRINT_SEL(sel, "CONFIG_PHL_CPU_BALANCE\n");
 #ifdef CONFIG_PHL_CPU_BALANCE_TX
-	RTW_PRINT_SEL(sel, "CONFIG_PHL_CPU_BALANCE_TX\n");
+	RTW_PRINT_SEL(sel, "CONFIG_PHL_CPU_BALANCE_TX, CPU-ID: %d\n", CPU_ID_TX_PHL_0);
 #endif
 #ifdef CONFIG_PHL_CPU_BALANCE_RX
-	RTW_PRINT_SEL(sel, "CONFIG_PHL_CPU_BALANCE_RX\n");
+	RTW_PRINT_SEL(sel, "CONFIG_PHL_CPU_BALANCE_RX, CPU-ID: %d\n", CPU_ID_RX_CORE_0);
 #endif
 #endif
 #ifdef USE_AML_PCIE_TEE_MEM
@@ -295,6 +297,14 @@ void dump_drv_cfg(void *sel)
 	RTW_PRINT_SEL(sel, "NR_RECVBUFF = %d\n", NR_RECVBUFF);
 	RTW_PRINT_SEL(sel, "MAX_RECVBUF_SZ = %d\n", MAX_RECVBUF_SZ);
 	*/
+
+#ifdef CONFIG_RTW_REDUCE_MEM
+	RTW_PRINT_SEL(sel, "\n=== REDUCE MEM INFO ===\n");
+	RTW_PRINT_SEL(sel, "CORE_NR_XMITFRAME = %d\n", CORE_NR_XMITFRAME);
+	RTW_PRINT_SEL(sel, "CORE_MAX_TX_RING_NUM = %d\n", CORE_MAX_TX_RING_NUM);
+	RTW_PRINT_SEL(sel, "CORE_MAX_PHL_RING_ENTRY_NUM = %d\n", CORE_MAX_PHL_RING_ENTRY_NUM);
+	RTW_PRINT_SEL(sel, "CORE_MAX_PHL_RING_ENTRY_NUM = %d\n", CORE_MAX_PHL_RING_RX_PKT_NUM);
+#endif
 
 }
 
@@ -2786,6 +2796,51 @@ int proc_get_rx_signal(struct seq_file *m, void *v)
 {
 	struct net_device *dev = m->private;
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+#ifdef CONFIG_SNR_RPT
+	_list	*plist, *phead;
+	struct sta_info *psta = NULL;
+	u8 sta_mac[NUM_STA][ETH_ALEN] = {{0}};
+	uint mac_id[NUM_STA];
+	struct stainfo_stats	*pstats = NULL;
+	struct sta_priv	*pstapriv = &(padapter->stapriv);
+	u32 i, j, macid_rec_idx = 0;
+	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	u8 null_addr[ETH_ALEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+	_rtw_spinlock_bh(&pstapriv->sta_hash_lock);
+	for (i = 0; i < NUM_STA; i++) {
+		phead = &(pstapriv->sta_hash[i]);
+		plist = get_next(phead);
+		while ((rtw_end_of_queue_search(phead, plist)) == _FALSE) {
+			psta = LIST_CONTAINOR(plist, struct sta_info, hash_list);
+			plist = get_next(plist);
+			if ((_rtw_memcmp(psta->phl_sta->mac_addr, bc_addr, 6) !=  _TRUE)
+				&& (_rtw_memcmp(psta->phl_sta->mac_addr, null_addr, 6) != _TRUE)
+				&& (_rtw_memcmp(psta->phl_sta->mac_addr, adapter_mac_addr(padapter), 6) != _TRUE)) {
+				_rtw_memcpy(&sta_mac[macid_rec_idx][0], psta->phl_sta->mac_addr, ETH_ALEN);
+				mac_id[macid_rec_idx] = psta->phl_sta->macid;
+				macid_rec_idx++;
+			}
+		}
+	}
+	_rtw_spinunlock_bh(&pstapriv->sta_hash_lock);
+
+	for (i = 0; i < macid_rec_idx; i++) {
+		psta = rtw_get_stainfo(pstapriv, &sta_mac[i][0]);
+		if(psta) {
+			#if 0
+			/*ToDo, base on the real number of rf path to show the information*/
+			RTW_PRINT_SEL(m, "STA:"MAC_FMT" SNR:{%d, %d, %d, %d}\n", MAC_ARG(psta->phl_sta->mac_addr),
+				psta->snr_fd_avg[0], psta->snr_fd_avg[1], psta->snr_fd_avg[2], psta->snr_fd_avg[3]);
+			#else
+			RTW_PRINT_SEL(m, "STA:"MAC_FMT" SNR:{%d, %d, %d, %d}\n", MAC_ARG(psta->phl_sta->mac_addr),
+				psta->snr_td_avg[0], psta->snr_td_avg[1], psta->snr_td_avg[2], psta->snr_td_avg[3]);
+			#endif
+		} else {
+			RTW_INFO("STA is gone\n");
+		}
+	}
+#endif /* CONFIG_SNR_RPT */
 
 	RTW_PRINT_SEL(m, "rssi:%d\n", padapter->recvinfo.rssi);
 #if 0//def CONFIG_MP_INCLUDED
@@ -7052,7 +7107,7 @@ ssize_t proc_set_tx_ul_mu_disable(struct file *file, const char __user *buffer, 
 {
 	struct net_device *dev = data;
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
-	struct rtw_he_actrl_om om_info;
+	struct rtw_he_actrl_om om_info = {0};
 	u8 om_mask = 0;
 	char tmp[32];
 	u8 ul_mu_disable;
@@ -7250,3 +7305,55 @@ inline void RTW_BUF_DUMP_SEL(uint _loglevel, void *sel, u8 *_titlestring,
 }
 
 #endif
+
+int proc_get_vcs(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct registry_priv *pregpriv = &padapter->registrypriv;
+
+	if (padapter)
+	{
+		RTW_PRINT_SEL(m, "vrtl_carrier_sense = %d\n", pregpriv->vrtl_carrier_sense);
+		RTW_PRINT_SEL(m, "vcs_type = %u\n", pregpriv->vcs_type);
+		RTW_PRINT_SEL(m, "rts_thresh = %u\n", pregpriv->rts_thresh);
+		RTW_PRINT_SEL(m, "hw_rts_en = %u\n", pregpriv->hw_rts_en);
+	}
+
+	return 0;
+}
+
+ssize_t proc_set_vcs(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct registry_priv *pregpriv = &padapter->registrypriv;
+	char tmp[32];
+	u8 vcs, vcs_t, hw_rts;
+	u16 rts_th;
+
+	if (count < 1)
+		return -EFAULT;
+
+	if (count > sizeof(tmp)) {
+		rtw_warn_on(1);
+		return -EFAULT;
+	}
+
+	if (buffer && !copy_from_user(tmp, buffer, count)) {
+
+		int num = sscanf(tmp, "%hhu %hhu %hhu %hu ", &vcs, &vcs_t, &hw_rts, &rts_th);
+
+		if (padapter && (num == 4)) {
+			pregpriv->vrtl_carrier_sense = vcs;
+			pregpriv->vcs_type = vcs_t;
+			pregpriv->hw_rts_en= hw_rts;
+			pregpriv->rts_thresh = rts_th;
+		}
+		else
+			RTW_WARN("%s: Wrong setting.\n", __func__);
+
+	}
+
+	return count;
+}

@@ -1277,7 +1277,7 @@ static u32 ptcl_init(struct mac_ax_adapter *adapter, u8 band,
 					     B_AX_HW_CTS2SELF_PKT_LEN_TH);
 			val32 = SET_CLR_WORD(val32, S_AX_CTS2S_TH_SEC_256B,
 					     B_AX_HW_CTS2SELF_PKT_LEN_TH_TWW);
-			val32 |= B_AX_HW_CTS2SELF_EN;
+			/*val32 |= B_AX_HW_CTS2SELF_EN;*/
 			MAC_REG_W32(reg, val32);
 
 			reg = band == MAC_AX_BAND_1 ?

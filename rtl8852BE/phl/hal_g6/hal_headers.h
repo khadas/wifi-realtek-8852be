@@ -80,6 +80,7 @@
 #include "hal_ps.h"
 #include "hal_custom.h"
 #include "hal_txpwr.h"
+#include "hal_com_i.h"
 
 #define hal_to_drvpriv(_halinfo) (_halinfo->hal_com->drv_priv)
 

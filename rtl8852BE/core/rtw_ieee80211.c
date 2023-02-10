@@ -501,6 +501,7 @@ exit:
 void rtw_set_supported_rate(u8 *SupportedRates, uint mode, u8 ch)
 {
 	int is_2G_band = 1;
+	int cck_len = 0;
 
 	if (ch > 14)
 		is_2G_band = 0;
@@ -508,11 +509,13 @@ void rtw_set_supported_rate(u8 *SupportedRates, uint mode, u8 ch)
 	_rtw_memset(SupportedRates, 0, NDIS_802_11_LENGTH_RATES_EX);
 
 	if (is_2G_band) {
-		if (mode & WLAN_MD_11B)
+		if (mode & WLAN_MD_11B) {
 			_rtw_memcpy(SupportedRates, WIFI_CCKRATES, IEEE80211_CCK_RATE_LEN);
+			cck_len = IEEE80211_CCK_RATE_LEN;
+		}
 
 		if (mode & ~WLAN_MD_11B) /* NOT B only */
-			_rtw_memcpy(SupportedRates + IEEE80211_CCK_RATE_LEN,
+			_rtw_memcpy(SupportedRates + cck_len,
 				WIFI_OFDMRATES, IEEE80211_NUM_OFDM_RATESLEN);
 	} else {/* 5G and 6G */
 		_rtw_memcpy(SupportedRates, WIFI_OFDMRATES, IEEE80211_NUM_OFDM_RATESLEN);

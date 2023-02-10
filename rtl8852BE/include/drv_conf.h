@@ -78,6 +78,20 @@
 		#endif
 	#endif
 
+	#if (CONFIG_RTW_ANDROID >= 11)
+		#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,4,0))
+			#ifndef CONFIG_RTW_ANDROID_GKI
+			#define CONFIG_RTW_ANDROID_GKI
+			#endif
+		#endif
+
+		#ifdef CONFIG_RTW_ANDROID_GKI
+			#ifdef CONFIG_ADAPTOR_INFO_CACHING_FILE
+			#undef CONFIG_ADAPTOR_INFO_CACHING_FILE
+			#endif
+		#endif
+	#endif
+
 	#ifdef CONFIG_RTW_WIFI_HAL
 	#ifndef CONFIG_RTW_WIFI_HAL_DEBUG
 	//#define CONFIG_RTW_WIFI_HAL_DEBUG
@@ -671,6 +685,7 @@ power down etc.) in last time, we can unmark this flag to avoid some unpredictab
 #ifdef ROKU_PRIVATE
 	#define CONFIG_RELEASE_RPT
 	#define CONFIG_RA_TXSTS_DBG
+	#define CONFIG_SNR_RPT
 #endif
 
 #ifdef CONFIG_80211AX_HE

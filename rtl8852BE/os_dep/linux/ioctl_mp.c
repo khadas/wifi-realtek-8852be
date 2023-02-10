@@ -1962,13 +1962,28 @@ int rtw_mp_get_tsside(struct net_device *dev,
 		RTW_DBG("%s:pout %d int %d dec %d\n", __func__, pout, int_num , dec_num);
 
 		if (i == 2) {
-			/* Convert decimal number
-			 * ex : 0.1 => 100, -0.1 => 100*/
-			dec_num = (dec_num < 1) ? dec_num * 10 : dec_num;
-			dec_num = (dec_num < 10) ? dec_num * 1 : dec_num;
+
+			u8 idx = 0;
+			u32 dec = 0;
+			u8 str_len = 0;
+			char *token, *tmp[3] = {};
+			char *pextra;
+
+			pextra = pout_str_buf;
+			while ((token = strsep (&pextra,".")) != NULL) {
+				tmp[idx] = token;
+				RTW_INFO("%s() token %d = %s strlen =%ld\n", __func__,
+					idx, tmp[idx], strlen(tmp[idx]));
+				idx++;
+			}
+
+			str_len = strlen(tmp[1]);
+			dec = rtw_atoi(tmp[1]);
+			dec_num = (str_len == 1) ? dec * 10: (str_len == 2) ? dec * 1: dec;
+			RTW_INFO("%s() decimal_num  = %d\n", __func__, dec_num);
 			pout += ((pout < 0 || pout_signed_flag == 1) ? -dec_num : dec_num);
 		}
-		if (pout < -1500 || 2500 < pout)
+		if (pout < -1500 || pout > 2500)
 			goto error;
 		RTW_INFO("%s:pout %d\n", __func__, pout);
 
@@ -1983,12 +1998,28 @@ int rtw_mp_get_tsside(struct net_device *dev,
 		RTW_DBG("%s:tgrpwr %d int %d dec %d\n", __func__, tgrpwr, int_num , dec_num);
 
 		if (i == 2) {
-			/* Convert decimal number
-			 * ex : 0.1 => 100, -0.1 => 100*/
-			dec_num = (dec_num < 1) ? dec_num * 10 : dec_num;
-			dec_num = (dec_num < 10) ? dec_num * 1 : dec_num;
+
+			u8 idx = 0;
+			u32 dec = 0;
+			u8 str_len = 0;
+			char *token, *tmp[3] = {};
+			char *pextra;
+
+			pextra = tgr_str_buf;
+			while ((token = strsep (&pextra,".")) != NULL) {
+				tmp[idx] = token;
+				RTW_INFO("%s() token %d = %s strlen =%ld\n", __func__,
+					idx, tmp[idx], strlen(tmp[idx]));
+				idx++;
+			}
+
+			str_len = strlen(tmp[1]);
+			dec = rtw_atoi(tmp[1]);
+			dec_num = (str_len == 1) ? dec * 10: (str_len == 2) ? dec * 1: dec;
+			RTW_INFO("%s() decimal_num  = %d\n", __func__, dec_num);
 			tgrpwr += ((tgrpwr < 0 || tgrpwr_signed_flag == 1) ? -dec_num : dec_num);
 		}
+
 		if (tgrpwr < -1500 || 2500 < tgrpwr)
 			goto error;
 		RTW_INFO("%s:tgrpwr %d\n", __func__, tgrpwr);

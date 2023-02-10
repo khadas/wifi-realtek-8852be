@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c)2021 Realtek Corporation.
+ * Copyright(c)2019 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -12,19 +12,10 @@
  * more details.
  *
  *****************************************************************************/
-#ifndef _HAL_TXPWR_H_
-#define _HAL_TXPWR_H_
+#ifndef _HAL_COM_I_H_
+#define _HAL_COM_I_H_
 
-const char *rtw_hal_get_pw_lmt_regu_type_str(void *hal, enum band_type band);
+enum phl_phy_idx rtw_hal_hw_band_to_phy_idx(enum phl_band_idx band_idx);
 
-bool rtw_hal_get_pwr_lmt_en(void *hal, u8 band_idx);
+#endif /* _HAL_COM_I_H_ */
 
-u16 rtw_hal_get_pwr_constraint(void *hal, u8 band_idx);
-enum rtw_hal_status rtw_hal_set_pwr_constraint(void *hal, u8 band_idx, u16 mb);
-
-enum rtw_hal_status rtw_hal_set_tx_power(void *hal, u8 band_idx,
-					enum phl_pwr_table pwr_table);
-
-enum rtw_hal_status rtw_hal_get_txinfo_power(void *hal,
-					s16 *txinfo_power_dbm);
-#endif

@@ -466,6 +466,13 @@ hal_handle_rx_buffer_8852b(struct rtw_phl_com_t *phl_com,
 #ifdef CONFIG_PHL_TEST_SUITE
 	struct test_bp_info bp_info;
 #endif
+#ifdef CONFIG_PHL_CSUM_OFFLOAD_RX
+	struct mac_ax_adapter *mac = hal_to_mac(hal);
+	u8 status;
+	u32 result;
+	u32 offset;
+#endif
+
 	hstatus = hal_parsing_rx_wd_8852b(phl_com, hal, buf,
 					&pkt->vir_addr, &pkt->length, mdata);
 
@@ -473,6 +480,16 @@ hal_handle_rx_buffer_8852b(struct rtw_phl_com_t *phl_com,
 		return hstatus;
 	if( (pkt->vir_addr + pkt->length) > (buf + buf_len) )
 		return RTW_HAL_STATUS_FAILURE;
+
+#ifdef CONFIG_PHL_CSUM_OFFLOAD_RX
+	if (mdata->chksum_ofld_en) {
+		offset = pkt->length;
+		offset = _ALIGN(offset, 8);
+		status = *(pkt->vir_addr + offset);
+		result = mac->ops->chk_rx_tcpip_chksum_ofd(mac, status);
+		rtw_hal_mac_parse_rxd_checksume(hal->hal_com, mdata, result);
+	}
+#endif /* CONFIG_PHL_CSUM_OFFLOAD_RX */
 
 	/* hana_todo */
 	r->pkt_cnt = 1;
