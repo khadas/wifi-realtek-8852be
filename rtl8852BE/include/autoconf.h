@@ -153,12 +153,12 @@
 #endif
 
 #ifdef CONFIG_POWER_SAVE
-	#define CONFIG_RTW_IPS
+	/* #define CONFIG_RTW_IPS */
 	#define CONFIG_RTW_LPS
 
 	#ifdef CONFIG_RTW_LPS
-		//#define CONFIG_RTW_LPS_RFOFF
-		//#define CONFIG_RTW_LPS_DEFAULT_OFF
+		#define CONFIG_RTW_LPS_RFOFF
+		#define CONFIG_RTW_LPS_DEFAULT_OFF
 	#endif
 
 	#if defined(CONFIG_RTW_IPS) || defined(CONFIG_RTW_LPS)
@@ -437,5 +437,3 @@
 #endif /* CONFIG_ARCH_CORTINA */
 
 #define CONFIG_SNR_RPT
-
-#define CONFIG_RESUME_CHANNEL

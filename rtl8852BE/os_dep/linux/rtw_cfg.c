@@ -95,9 +95,8 @@ int rtw_scan_mode = 1;/* active, passive */
 #ifndef CONFIG_RTW_LPS_RFOFF
 	int rtw_lps_cap = PS_CAP_PWRON |
 			PS_CAP_RF_OFF |
-			PS_CAP_CLK_GATED;/* |
+			PS_CAP_CLK_GATED |
 			PS_CAP_PWR_GATED;
-			*/
 #else
 	int rtw_lps_cap = PS_CAP_PWRON |
 			PS_CAP_RF_OFF;

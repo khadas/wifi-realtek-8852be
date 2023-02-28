@@ -1344,10 +1344,7 @@ u8 rtw_init_drv_sw(_adapter *padapter)
 #ifdef CONFIG_RTW_CFGVENDOR_RANDOM_MAC_OUI
 	struct rtw_wdev_priv *pwdev_priv = adapter_wdev_data(padapter);
 #endif
-#ifdef CONFIG_RESUME_CHANNEL
-	padapter->resu_ch = 0;
-	printk("[Leo_debug] padapter->resu_ch = %d !!! [%s:%d]", padapter->resu_ch, __func__, __LINE__);	// Leo debug
-#endif
+
 	ret8 = rtw_init_default_value(padapter);/*load registrypriv value*/
 
 	if (rtw_init_mlme_priv(padapter) == _FAIL) {
@@ -2885,10 +2882,6 @@ int rtw_suspend_free_assoc_resource(_adapter *padapter)
 				MAC_ARG(pmlmepriv->cur_network.network.MacAddress),
 				pmlmepriv->cur_network.network.Ssid.SsidLength,
 				pmlmepriv->assoc_ssid.SsidLength);
-		  #ifdef CONFIG_RESUME_CHANNEL
-			padapter->resu_ch = pmlmeext->chandef.chan;
-			printk("[Leo_debug] padapter->resu_ch = %d !!! [%s:%d]", padapter->resu_ch, __func__, __LINE__);	// Leo debug
-		  #endif
 			rtw_set_to_roam(padapter, 1);
 		}
 	}

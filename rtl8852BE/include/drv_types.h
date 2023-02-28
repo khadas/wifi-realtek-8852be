@@ -1846,9 +1846,6 @@ struct _ADAPTER {
 #ifdef CONFIG_ECSA_PHL
 	struct core_ecsa_info ecsa_info;
 #endif
-#ifdef CONFIG_RESUME_CHANNEL
-	u16	resu_ch;
-#endif
 };
 
 #define adapter_to_dvobj(adapter) ((adapter)->dvobj)
