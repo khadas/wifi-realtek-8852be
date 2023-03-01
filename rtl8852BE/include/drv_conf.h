@@ -132,6 +132,14 @@
 #endif // CONFIG_RTW_ANDROID
 
 /*
+ * MLD related linux kernel patch in
+ * Android Common Kernel android13-5.15(5.15.41)
+ */
+#if (defined(CONFIG_RTW_ANDROID) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 41)))
+	#define CONFIG_MLD_KERNEL_PATCH
+#endif
+
+/*
 #if defined(CONFIG_HAS_EARLYSUSPEND) && defined(CONFIG_RESUME_IN_WORKQUEUE)
 	#warning "You have CONFIG_HAS_EARLYSUSPEND enabled in your system, we disable CONFIG_RESUME_IN_WORKQUEUE automatically"
 	#undef CONFIG_RESUME_IN_WORKQUEUE

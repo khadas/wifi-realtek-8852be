@@ -15,6 +15,18 @@ EXTRA_CFLAGS += -Wno-unused-label
 EXTRA_CFLAGS += -Wno-unused
 #EXTRA_CFLAGS += -Wno-uninitialized
 
+############ ANDROID COMMON KERNEL ############
+# clang
+ifeq ($(CC), clang)
+EXTRA_CFLAGS += -Wno-uninitialized
+EXTRA_CFLAGS += -Wno-enum-conversion
+EXTRA_CFLAGS += -Wno-fortify-source
+EXTRA_CFLAGS += -Wno-invalid-source-encoding
+EXTRA_CFLAGS += -Wno-tautological-pointer-compare
+EXTRA_CFLAGS += -Wno-tautological-overlap-compare
+EXTRA_CFLAGS += -Wno-pointer-bool-conversion
+endif
+
 GCC_VER_49 := $(shell echo `$(CC) -dumpversion | cut -f1-2 -d.` \>= 4.9 | bc )
 ifeq ($(GCC_VER_49),1)
 EXTRA_CFLAGS += -Wno-date-time	# Fix compile error && warning on gcc 4.9 and later
@@ -101,7 +113,7 @@ CONFIG_RTW_MBO = n
 CONFIG_RTKM ?= n
 ########################## Android ###########################
 # CONFIG_RTW_ANDROID - 0: no Android, 4/5/6/7/8/9/10 : Android version
-CONFIG_RTW_ANDROID = 0
+CONFIG_RTW_ANDROID = 13
 
 ifeq ($(shell test $(CONFIG_RTW_ANDROID) -gt 0; echo $$?), 0)
 EXTRA_CFLAGS += -DCONFIG_RTW_ANDROID=$(CONFIG_RTW_ANDROID)
@@ -593,6 +605,15 @@ ifneq ($(USER_MODULE_NAME),)
 MODULE_NAME := $(USER_MODULE_NAME)
 endif
 
+############ ANDROID COMMON KERNEL ############
+export M ?= $(shell pwd)
+export OUT_DIR ?= $(shell pwd)
+ifneq ($(LLVM),)
+export CC_STRIP = llvm-strip
+else
+export CC_STRIP = $(CROSS_COMPILE)strip
+endif
+
 ifneq ($(KERNELRELEASE),)
 ########### COMMON #################################
 include $(src)/common.mk
@@ -649,14 +670,14 @@ modules:
 	#rm -f .symvers.$(MODULE_NAME)
 
 	$(MAKE) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) -C $(KSRC) M=$(M)  modules
-	$(CROSS_COMPILE)strip --strip-unneeded ${OUT_DIR}/$(M)/$(MODULE_NAME).ko
+	$(CC_STRIP) --strip-unneeded ${OUT_DIR}/$(M)/$(MODULE_NAME).ko
 ifeq ($(CONFIG_RTKM), m)
-	$(CROSS_COMPILE)strip --strip-unneeded ${OUT_DIR}/$(M)/rtkm.ko
+	$(CC_STRIP) --strip-unneeded ${OUT_DIR}/$(M)/rtkm.ko
 endif
 	#cp Module.symvers .symvers.$(MODULE_NAME)
 
 strip:
-	$(CROSS_COMPILE)strip $(MODULE_NAME).ko --strip-unneeded
+	$(CC_STRIP) $(MODULE_NAME).ko --strip-unneeded
 
 install:
 	install -p -m 644 $(MODULE_NAME).ko  $(MODDESTDIR)
